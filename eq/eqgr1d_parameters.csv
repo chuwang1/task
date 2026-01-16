@@ -1,0 +1,24 @@
+序号,函数位置,页号,GX1,GX2,GY1,GY2,X轴变量,Y轴变量,曲线数,标题,MODE,Y轴说明,单位
+1,eqgout.f:385,1,3.0,13.0,10.0,16.0,PSIP,PPS×1E-6,1,@PPS@,0,压强剖面,MPa
+2,eqgout.f:405,1,15.0,25.0,10.0,16.0,PSIP,TTS,1,@TTS@,1,环向磁通剖面,Wb
+3,eqgout.f:421,1,3.0,13.0,2.0,8.0,PSIP,RLEN,1,@RLEN@,0,磁力线长度,m
+4,eqgout.f:437,1,15.0,25.0,2.0,8.0,PSIP,QPS,1,@QPS@,0,安全因子 q 剖面,-
+5,eqgout.f:458,2,3.0,13.0,10.0,16.0,PSIP,VPS,1,@VPS@,0,体积剖面,m³
+6,eqgout.f:474,2,15.0,25.0,10.0,16.0,PSIP,SPS,1,@SPS@,0,磁面面积剖面,m²
+7,eqgout.f:510,2,3.0,13.0,2.0,8.0,PSIP,"RRMIN,RRMAX,ZZMIN,ZZMAX,BBMIN,BBMAX",6,@RRMIN/MAX,ZZMIN/MAX,BBMIN/MAX@,0,"R最小/最大,Z最小/最大,B最小/最大","m,m,T"
+8,eqgout.f:531,2,15.0,25.0,2.0,8.0,PSIP,"BBMIN,BBMAX",2,@BBMIN/MAX@,0,磁场强度最小/最大值,T
+9,eqgout.f:552,3,3.0,13.0,10.0,16.0,PSIP,AVERR2,1,@AVERR2@,0,⟨R²⟩ 磁面平均,m²
+10,eqgout.f:568,3,15.0,25.0,10.0,16.0,PSIP,AVEIR2,1,@AVEIR2@,0,⟨1/R²⟩ 磁面平均,1/m²
+11,eqgout.f:584,3,3.0,13.0,2.0,8.0,PSIP,AVEBB2,1,@AVEBB2@,0,⟨B²⟩ 磁面平均,T²
+12,eqgout.f:600,3,15.0,25.0,2.0,8.0,PSIP,AVEIB2,1,@AVEIB2@,0,⟨1/B²⟩ 磁面平均,1/T²
+13,eqgout.f:621,4,3.0,13.0,10.0,16.0,PSIP,AVEGV2,1,@AVEGV2@,0,⟨|∇V|²⟩ 磁面平均,m⁴
+14,eqgout.f:637,4,15.0,25.0,10.0,16.0,PSIP,AVEGVR2,1,@AVEGVR2@,0,⟨|∇V|²/R²⟩ 磁面平均,m²
+15,eqgout.f:653,4,3.0,13.0,2.0,8.0,PSIP,AVEGP2,1,@AVEGP2@,0,⟨|∇P|²⟩ 磁面平均,Pa²/m²
+16,eqgout.f:675,4,15.0,25.0,2.0,8.0,PSIP,"AVEJPR×1E-6,AVEJTR×1E-6",2,@AVEJPR,AVEJTR@,0,平均极向/环向电流密度,MA/m²
+17,eqgout.f:697,5,3.0,13.0,10.0,16.0,PSIP,RRPSI,1,@RRPSI@,0,主半径剖面,m
+18,eqgout.f:713,5,15.0,25.0,10.0,16.0,PSIP,RSPSI,1,@RSPSI@,0,次半径剖面,m
+19,eqgout.f:729,5,3.0,13.0,2.0,8.0,PSIP,ELIPPSI,1,@ELIPPSI@,0,椭圆度剖面,-
+20,eqgout.f:745,5,15.0,25.0,2.0,8.0,PSIP,TRIGPSI,1,@TRIGPSI@,0,三角形度剖面,-
+21,eqgout.f:766,6,3.0,13.0,10.0,16.0,PSIP,DVDPSIP,1,@DVDPSIP@,0,dV/dψp (体积对极向磁通导数),m³/Wb
+22,eqgout.f:782,6,15.0,25.0,10.0,16.0,PSIP,DVDPSIT,1,@DVDPSIT@,0,dV/dψt (体积对环向磁通导数),m³/Wb
+23,eqgout.f:798,6,3.0,13.0,2.0,8.0,PSIP,AVEGV,1,@AVEGV@,0,⟨|∇V|⟩ 磁面平均,m²

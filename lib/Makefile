@@ -41,9 +41,7 @@ SRCSGRF   =  libgrf/grftype.f90 libgrf/grfutils.f90 libgrf/grdutils.f90 \
              libgrf/grd1dframe.f90 libgrf/grd2dframe.f90 \
 	     libgrf.f90
 
-SRCSPKF   =  libpkf/libpdkf_eul.f90 libpkf/libpdkf.f90 \
-             libpkf/libpdkf2.f90 libpkf/libpgkf.f90 \
-             libpkf/wieul.f90
+SRCSPKF   = 
 
 SRCSFIXED =  $(LAPACK)
 
@@ -54,7 +52,7 @@ OBJSPKF = $(addprefix $(OBJDIR)/,$(SRCSPKF:.f90=.o))
 OBJSMDS = $(addprefix $(OBJDIR)/,$(MDSPLUS:.f=.o))
 
 
-all : libtask.a libgrf.a libpkf.a libmds.a
+all : libtask.a libgrf.a libmds.a
 
 libtask.a: $(OBJSFREE) $(OBJSFIXED)
 	$(LD) $(LDFLAGS) libtask.a $(OBJSFREE) $(OBJSFIXED)

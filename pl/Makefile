@@ -35,6 +35,12 @@ SRCS_EQ=plprof2d.f90 \
 OBJS_NOEQ=$(addprefix $(OBJDIR)/, $(SRCS_NOEQ:.f90=.o))
 OBJS_EQ=$(addprefix $(OBJDIR)/, $(SRCS_EQ:.f90=.o))
 
+noeqlib.o: noeqlib.f
+	$(FCFIXED) $(FFLAGS) -c $< -o $@ $(MODDIR) $(MODINCLUDE)
+
+noequlib.o: noequlib.f
+	$(FCFIXED) $(FFLAGS) -c $< -o $@ $(MODDIR) $(MODINCLUDE)
+
 LIBS = libpl.a ../eq/libeq.a ../lib/libgrf.a ../lib/libtask.a ../../bpsd/libbpsd.a
 
 all : libs pl

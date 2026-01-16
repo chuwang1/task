@@ -1,0 +1,14 @@
+XTerm*visualBell: false
+XTerm*utf-8: 1
+XTerm*jumpScroll: true
+XTerm*saveLines: 1000
+XTerm*scrollBar: true
+XTerm*rightScrollBar: true
+XTerm.VT100.geometry:105×35+50+20
+XTerm*faceSize: 10
+!XTerm*faceSize: 14
+!XTerm*font: 8x16
+XTerm*ximFont: -misc-fixed-medium-r-normal--14-130-75-75-c-140-jisx0208.1983-0
+XTerm*faceName: Monaco
+XTerm*faceNameDoublesize: Osaka-Mono
+XDvi*vfontmap: /opt/local/share/texmf-texlive/xdvi/vfontmap

@@ -1,0 +1,12 @@
+ parameter,value,unit,description
+RAXIS,  0.85609228E+01,m,axis R
+ZAXIS,  0.88825229E+00,m,axis Z
+PSITA,  0.21443026E+03,Wb,tor flux
+PSIPA,  0.91358335E+02,Wb,pol flux
+PSI0, -0.91358335E+02,Wb,boundary
+NRGMAX,   129,-,R pts
+NZGMAX,   129,-,Z pts
+NTHMAX,    64,-,theta pts
+NRMAX,    50,-,radial surfs
+NRPMAX,    44,-,inside sep
+NSUMAX,   101,-,sep pts

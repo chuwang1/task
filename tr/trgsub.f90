@@ -24,6 +24,8 @@
       CHARACTER(LEN=80):: KT
       CHARACTER(LEN=1) :: KDL
 
+      CALL TR_WRITE_CSV(GX,GY,NXM,NXMAX,NGMAX,STR)
+
       CALL SETCHS(0.3,0.0)
       CALL SETFNT(32)
       CALL SETLNW(0.035)
@@ -948,3 +950,111 @@
       CALL TEXT(' SEC',4)
       RETURN
       END SUBROUTINE TRGRTM
+      SUBROUTINE TR_WRITE_CSV(GX,GY,NXM,NXMAX,NGMAX,STR)
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: NXM, NXMAX, NGMAX
+      REAL, INTENT(IN) :: GX(NXMAX)
+      REAL, INTENT(IN) :: GY(NXM, NGMAX)
+      CHARACTER(LEN=*), INTENT(IN) :: STR
+
+      INTEGER, SAVE :: N_CSV_COUNT = 0
+      CHARACTER(LEN=1024) :: FILENAME
+      CHARACTER(LEN=2048) :: HEADER_BUFFER
+      CHARACTER(LEN=256)  :: TITLE_STR, TEMP_STR, VAR_NAME
+      CHARACTER(LEN=32), DIMENSION(200) :: PARSED_VARS
+      INTEGER :: UNIT_NUM, IOS, I, N_VARS, P_AT1, P_AT2, P_BRACKET, P_VS, P_COMMA, J
+      LOGICAL :: EXISTS
+
+      N_CSV_COUNT = N_CSV_COUNT + 1
+      WRITE(FILENAME, '("tr_data_", I0.3, ".csv")') N_CSV_COUNT
+
+      ! Find a free unit number
+      DO UNIT_NUM = 80, 99
+         INQUIRE(UNIT=UNIT_NUM, OPENED=EXISTS)
+         IF (.NOT. EXISTS) EXIT
+      END DO
+
+      OPEN(UNIT=UNIT_NUM, FILE=TRIM(FILENAME), STATUS='REPLACE', ACTION='WRITE', IOSTAT=IOS)
+      IF (IOS .NE. 0) THEN
+         WRITE(6, *) '## ERROR OPENING CSV FILE: ', TRIM(FILENAME)
+         RETURN
+      END IF
+
+      ! --- HEADER PARSING LOGIC ---
+      HEADER_BUFFER = 'X'
+      N_VARS = 0
+      
+      ! 1. Extract substring between @...@
+      P_AT1 = INDEX(STR, '@')
+      IF (P_AT1 .GT. 0) THEN
+         TEMP_STR = STR(P_AT1+1:)
+         P_AT2 = INDEX(TEMP_STR, '@')
+         IF (P_AT2 .GT. 0) THEN
+            TITLE_STR = TEMP_STR(1:P_AT2-1)
+         ELSE
+            TITLE_STR = TEMP_STR
+         END IF
+      ELSE
+         TITLE_STR = STR
+      END IF
+
+      ! 2. Strip units [...] and "vs"
+      P_BRACKET = INDEX(TITLE_STR, '[')
+      IF (P_BRACKET .GT. 0) TITLE_STR = TITLE_STR(1:P_BRACKET-1)
+      
+      P_VS = INDEX(TITLE_STR, 'vs') ! Note: Case sensitive in standard Fortran
+      IF (P_VS .EQ. 0) P_VS = INDEX(TITLE_STR, 'VS')
+      IF (P_VS .GT. 0) TITLE_STR = TITLE_STR(1:P_VS-1)
+
+      ! 3. Split by comma to find variable names
+      TEMP_STR = ADJUSTL(TITLE_STR)
+      DO WHILE (LEN_TRIM(TEMP_STR) .GT. 0)
+         P_COMMA = INDEX(TEMP_STR, ',')
+         N_VARS = N_VARS + 1
+         IF (N_VARS .GT. 200) EXIT ! Safety limit
+
+         IF (P_COMMA .GT. 0) THEN
+            VAR_NAME = TEMP_STR(1:P_COMMA-1)
+            TEMP_STR = ADJUSTL(TEMP_STR(P_COMMA+1:))
+         ELSE
+            VAR_NAME = TEMP_STR
+            TEMP_STR = ''
+         END IF
+         PARSED_VARS(N_VARS) = TRIM(ADJUSTL(VAR_NAME))
+      END DO
+
+      ! 4. Construct Header Row based on NGMAX and found vars
+      IF (N_VARS .EQ. NGMAX) THEN
+         ! Case: 1-to-1 match (e.g. TE, TD -> Y1, Y2)
+         DO I = 1, NGMAX
+            HEADER_BUFFER = TRIM(HEADER_BUFFER)//','//TRIM(PARSED_VARS(I))
+         END DO
+      ELSE IF ((N_VARS .EQ. 1) .AND. (NGMAX .GT. 1)) THEN
+         ! Case: Time evolution (e.g. TD -> TD_1, TD_2, ...)
+         DO I = 1, NGMAX
+            WRITE(VAR_NAME, '(A,"_",I0)') TRIM(PARSED_VARS(1)), I
+            HEADER_BUFFER = TRIM(HEADER_BUFFER)//','//TRIM(VAR_NAME)
+         END DO
+      ELSE
+         ! Fallback: Use Generic Y1, Y2...
+         DO I = 1, NGMAX
+            WRITE(VAR_NAME, '("Y",I0)') I
+            HEADER_BUFFER = TRIM(HEADER_BUFFER)//','//TRIM(VAR_NAME)
+         END DO
+      END IF
+
+      WRITE(UNIT_NUM, '(A)') TRIM(STR) ! Metadata First Line
+      WRITE(UNIT_NUM, '(A)') TRIM(HEADER_BUFFER)
+
+      DO I = 1, NXMAX
+         IF (NGMAX .EQ. 1) THEN
+            WRITE(UNIT_NUM, '(E14.7, ",", E14.7)') GX(I), GY(I, 1)
+         ELSE
+            WRITE(UNIT_NUM, '(E14.7, 200(",", E14.7))') GX(I), (GY(I, J), J=1, NGMAX)
+         END IF
+      END DO
+
+      CLOSE(UNIT_NUM)
+      WRITE(6, *) '## CSV EXPORTED: ', TRIM(FILENAME)
+
+      END SUBROUTINE TR_WRITE_CSV

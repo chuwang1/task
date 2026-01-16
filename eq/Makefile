@@ -19,7 +19,7 @@ SRCX = equcom.f90 equread.f90 eqlib.f90
 SRCS = eqbpsd.f eqinit.f eqmenu.f eqcalc.f eqcalq.f eqcalv.f \
        eqsub.f eqfunc.f eqintf.f eqsplf.f equintf.f \
        eq-eqdsk.f eq-qst.f eqfile.f \
-       eqgout.f eqgsub.f eqgetp.f \
+       eqgout.f eqgsub.f eqgetp.f eqgs1d_export.f eqgs2d_export.f \
        newton.f invematrix.f equnit.f eqrppl.f
 
 SRCT = trtest.f treqin.f
@@ -59,7 +59,7 @@ all : libs eq
 	(cd ../pl; make libpl.a)
 
 libeq.a: $(OBJS) $(OBJ2D)
-	$(LD) $(LDFLAGS) libeq.a $(OBJS) $(OBJ2D) ../pl/libpl.a
+	$(LD) $(LDFLAGS) libeq.a $(OBJS) $(OBJ2D)
 libeq3.a: $(OBJS) $(OBJ3D)
 	$(LD) $(LDFLAGS) libeq3.a $(OBJS) $(OBJ3D)
 
