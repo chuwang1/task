@@ -3,7 +3,7 @@
 MODULE trprof
 
   PRIVATE
-  PUBLIC tr_prof,tr_prof_impurity,tr_prof_current
+  PUBLIC tr_prof,tr_prof_impurity,tr_prof_current,read_density_from_file
 
 CONTAINS
 
@@ -23,9 +23,14 @@ CONTAINS
       CALL TR_EDGE_DETERMINER(0)
       CALL TR_EDGE_SELECTOR(0)
       IF(RHOA.NE.1.D0) NRMAX=NROMAX
+
+!     *** Initialize grid first ***
       DO NR=1,NRMAX
          RG(NR) = DBLE(NR)*DR
          RM(NR) =(DBLE(NR)-0.5D0)*DR
+      ENDDO
+
+      DO NR=1,NRMAX
          VTOR(NR)=0.D0
          VPAR(NR)=0.D0
          VPRP(NR)=0.D0
@@ -224,8 +229,10 @@ CONTAINS
             WROT(NR)  = WROTU(1,NR)
             VTOR(NR)  = WROTU(1,NR)*RMJRHOU(1,NR)
          case default
-            PROF   = (1.D0-(ALP(1)*RM(NR))**PROFN1)**PROFN2
-            RN(NR,1:NSM) = (PN(1:NSM)-PNS(1:NSM))*PROF+PNS(1:NSM)
+            IF(MDLDEN.EQ.0) THEN
+               PROF   = (1.D0-(ALP(1)*RM(NR))**PROFN1)**PROFN2
+               RN(NR,1:NSM) = (PN(1:NSM)-PNS(1:NSM))*PROF+PNS(1:NSM)
+            ENDIF
 
             PROF   = (1.D0-(ALP(1)*RM(NR))**PROFT1)**PROFT2
             RT(NR,1:NSM) = (PT(1:NSM)-PTS(1:NSM))*PROF+PTS(1:NSM)
@@ -255,6 +262,11 @@ CONTAINS
 !      CALL PLDATA_SETR(RG,RM)
       CALL TR_EDGE_DETERMINER(1)
       CALL TR_EDGE_SELECTOR(1)
+
+!     *** Read density from file if MDLDEN=1, after initialization ***
+      IF(MDLDEN.EQ.1) THEN
+         CALL read_density_from_file
+      ENDIF
 
       qsurf=5.D0*(RA/RR)*(BB/RIPS)
       qaxis=0.5D0*qsurf
@@ -727,4 +739,101 @@ CONTAINS
 
       RETURN
       END SUBROUTINE TR_EDGE_SELECTOR
+
+!     ***********************************************************
+!
+!           READ DENSITY PROFILE FROM EXTERNAL FILE
+!
+!     ***********************************************************
+
+    SUBROUTINE read_density_from_file
+
+      USE trcomm
+      IMPLICIT NONE
+
+      INTEGER :: NR, ISTAT, NDATA, I, IL, IU
+      INTEGER, PARAMETER :: NMAX_FILE = 500  ! max data points in file
+      REAL(rkind) :: RHO_TARGET, FACTOR
+      REAL(rkind), DIMENSION(NMAX_FILE) :: RHO_FILE, NE_FILE, ND_FILE, NT_FILE, NHE_FILE
+      CHARACTER(LEN=256) :: LINE
+
+      WRITE(6,*) '*** Reading density profile from: ', TRIM(KNAMDEN)
+
+!     *** Open and read file ***
+      OPEN(UNIT=99, FILE=TRIM(KNAMDEN), STATUS='OLD', IOSTAT=ISTAT)
+      IF(ISTAT.NE.0) THEN
+         WRITE(6,*) 'XX read_density_from_file: Cannot open file: ', TRIM(KNAMDEN)
+         WRITE(6,*) 'XX Using analytical profile instead.'
+         RETURN
+      ENDIF
+
+!     *** Skip header line ***
+      READ(99, '(A)', IOSTAT=ISTAT) LINE
+      IF(ISTAT.NE.0) THEN
+         WRITE(6,*) 'XX read_density_from_file: Error reading header'
+         CLOSE(99)
+         RETURN
+      ENDIF
+
+!     *** Read data ***
+      NDATA = 0
+      DO I = 1, NMAX_FILE
+         READ(99, *, IOSTAT=ISTAT) RHO_FILE(I), NE_FILE(I), ND_FILE(I), NT_FILE(I), NHE_FILE(I)
+         IF(ISTAT.NE.0) EXIT
+         NDATA = NDATA + 1
+      ENDDO
+      CLOSE(99)
+
+      IF(NDATA.LT.2) THEN
+         WRITE(6,*) 'XX read_density_from_file: Not enough data points: ', NDATA
+         RETURN
+      ENDIF
+
+      WRITE(6,*) '*** Read ', NDATA, ' data points from density file'
+
+!     *** Linear interpolation to simulation grid ***
+      DO NR = 1, NRMAX
+         RHO_TARGET = RM(NR)  ! normalized radius at grid point
+
+!        *** Find bracketing indices in file data ***
+         IL = 1
+         IU = NDATA
+         DO I = 1, NDATA-1
+            IF(RHO_FILE(I).LE.RHO_TARGET .AND. RHO_FILE(I+1).GE.RHO_TARGET) THEN
+               IL = I
+               IU = I + 1
+               EXIT
+            ENDIF
+         ENDDO
+
+!        *** Handle edge cases ***
+         IF(RHO_TARGET.LE.RHO_FILE(1)) THEN
+            IL = 1
+            IU = 1
+         ELSEIF(RHO_TARGET.GE.RHO_FILE(NDATA)) THEN
+            IL = NDATA
+            IU = NDATA
+         ENDIF
+
+!        *** Linear interpolation ***
+         IF(IL.EQ.IU) THEN
+            FACTOR = 0.D0
+         ELSE
+            FACTOR = (RHO_TARGET - RHO_FILE(IL)) / (RHO_FILE(IU) - RHO_FILE(IL))
+         ENDIF
+
+!        *** Assign density values (unit: 10^20 m^-3) ***
+         RN(NR,1) = NE_FILE(IL) + FACTOR*(NE_FILE(IU) - NE_FILE(IL))  ! electron
+         RN(NR,2) = ND_FILE(IL) + FACTOR*(ND_FILE(IU) - ND_FILE(IL))  ! D
+         RN(NR,3) = NT_FILE(IL) + FACTOR*(NT_FILE(IU) - NT_FILE(IL))  ! T
+         RN(NR,4) = NHE_FILE(IL) + FACTOR*(NHE_FILE(IU) - NHE_FILE(IL))  ! He
+      ENDDO
+
+      WRITE(6,*) '*** Density profile loaded successfully'
+      WRITE(6,'(A,4(1PE12.4))') '    n(0) [10^20 m^-3]: ', RN(1,1), RN(1,2), RN(1,3), RN(1,4)
+      WRITE(6,'(A,4(1PE12.4))') '    n(a) [10^20 m^-3]: ', RN(NRMAX,1), RN(NRMAX,2), RN(NRMAX,3), RN(NRMAX,4)
+
+      RETURN
+    END SUBROUTINE read_density_from_file
+
     END MODULE trprof

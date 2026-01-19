@@ -637,6 +637,15 @@ CONTAINS
       MDLXP=0
       MDLUF=0
 
+!     ==== DENSITY PROFILE INPUT ====
+
+!        MDLDEN :
+!           0 : use analytical formula (default)
+!           1 : read from external file (KNAMDEN)
+
+      MDLDEN=0
+      KNAMDEN='in/density_input.txt'
+
 !     ==== IMPURITY TREATMENT ====
 
 !        MDNI  :

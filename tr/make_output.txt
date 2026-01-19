@@ -1,0 +1,14 @@
+(cd ../../bpsd; make libbpsd.a)
+make[1]: `libbpsd.a' is up to date.
+(cd ../lib; make libtask.a)
+make[1]: `libtask.a' is up to date.
+(cd ../lib; make libgrf.a)
+make[1]: `libgrf.a' is up to date.
+(cd ../lib; make libmds.a)
+make[1]: `libmds.a' is up to date.
+(cd ../mtxp; make)
+make[1]: `libmtxp.a' is up to date.
+(cd ../pl; make libpl.a)
+make[1]: `libpl.a' is up to date.
+(cd ../eq; make libeq.a)
+make[1]: `libeq.a' is up to date.

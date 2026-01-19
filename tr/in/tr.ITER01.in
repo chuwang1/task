@@ -3,7 +3,7 @@ f
 tr.ITER01.gs
 c
    modelg=3
-   KNAMEQ='../eq/in/gfile_efit_output',
+   KNAMEQ='../eq/eqdata.ITER01',
    NSMAX=4
    PN=0.7D0,0.315D0,0.315D0,0.035D0,
    PNS=0.1D0,0.045D0,0.045D0,0.005D0

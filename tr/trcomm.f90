@@ -260,7 +260,9 @@ MODULE TRCOMM
 ! TRUFL
   REAL(rkind)    :: TIME_INT
   INTEGER :: MDLXP,MDLUF,MODEP,MDNI,MDCURT,MDNM1,MDLJQ,MDPHIA,NTS
+  INTEGER :: MDLDEN  ! 0: use analytical formula, 1: read from file
   CHARACTER(LEN=80) :: KUFDIR,KUFDEV,KUFDCG
+  CHARACTER(LEN=256) :: KNAMDEN  ! density profile input file name
 !     ****** LAPACK ******
 ! TRLPCK
   INTEGER :: MDLPCK
