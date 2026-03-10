@@ -16,6 +16,8 @@
 *.toc
 *.out
 *.ps
+*csv
+*png
 .DS_Store
 fort.*
 gsdump*
