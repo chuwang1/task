@@ -1,6 +1,5 @@
 rm -rf ./tr_data_*
 ./tr2 <$1    
-./tr2  <tr.iter01.in
 /Users/dengxiaoya/miniforge3/envs/Fusion/bin/python  parse_tr_csv.py tr_data_*.csv -n 8
 /Users/dengxiaoya/miniforge3/envs/Fusion/bin/python images_to_pdf.py 4
 /Users/dengxiaoya/miniforge3/envs/Fusion/bin/python analyze_energy_balance_final.py 

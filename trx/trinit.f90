@@ -364,6 +364,12 @@ CONTAINS
       ISCALING_TYPE  = 1        ! 0: ITER89-P, 1: IPB98(y,2)
       L_SCALING_CONVERGED = .FALSE.
 
+      !  model_prlfixed: line radiation from external file
+      !       0 : use calculated PRL
+      !       1 : read PRL from CSV file (knam_prlfixed), override PRL
+      model_prlfixed=0
+      knam_prlfixed='omfit_prl_for_tr.csv'
+
       !     ==== NCLASS SWITCH ====
 
       !     MDLNCL   0    : off

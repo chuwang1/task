@@ -80,6 +80,8 @@ CONTAINS
       WRITE(6,602) 'NGRSTP',NGRSTP,'NGTSTP',NGTSTP,'NGPST ',NGPST, 'IZERO ',IZERO
       WRITE(6,602) 'MDLST ',MDLST, 'MDLCD ',MDLCD
       WRITE(6,630) 'model_pnf   ',model_pnf
+      WRITE(6,630) 'model_prlfix',model_prlfixed
+      IF(model_prlfixed.GE.1) WRITE(6,'(A,A)') 'knam_prlfix   ',knam_prlfixed
 
       IF(MDLIMP.GT.0) THEN
          WRITE(6,602) 'MDLIMP',MDLIMP

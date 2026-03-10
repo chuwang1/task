@@ -251,11 +251,19 @@
 
       USE TRCOMM
       USE tr_cytran_mod, ONLY: tr_cytran
+      USE trfixed, ONLY: tr_prep_prlfixed
       USE libitp
       IMPLICIT NONE
       INTEGER:: IERR, NR
       REAL(rkind):: ANDX, ANE, ANHE, ANT, EION, PLC, PLD, PLFE, PLHE, PLTT, &
            PRLL, SCH, SION, TD, TE, TN, TNU, TRRPC, TRRPFE, TSL
+      INTEGER,SAVE:: irad_init=0
+
+!     Read external radiation profile once
+      IF(irad_init.EQ.0) THEN
+         CALL tr_prep_prlfixed
+         irad_init=1
+      END IF
 
          DO NR=1,NRMAX
             ANE =RN(NR,1)
@@ -264,6 +272,10 @@
             PLFE  = ANE*ANFE(NR)*TRRPFE(TE)*1.D40
             PLC   = ANE*ANC (NR)*TRRPC (TE)*1.D40
             PRL(NR)=PLFE+PLC
+!     Override PRL with external line radiation if model_prlfixed=1
+            IF(model_prlfixed.EQ.1) THEN
+               PRL(NR)=PRL_ext(NR)
+            END IF
 !     Bremsstrahlung
             IF(NSMAX.GE.2) THEN
                ANDX=RN(NR,2)
