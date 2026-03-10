@@ -34,7 +34,7 @@ SRCS=trcomm.f90 trlib.f90 trbpsd.f90 libnf.f90 \
      tradat.f90 trmodels.f90 trcoef.f90 tritg.f90 \
      trrslt.f90 trpnb.f90 trprf.f90 trpel.f90 trpsc.f90 \
      trgout.f90 trgrar.f90 trgrat.f90 trgrap.f90 trgrae.f90 \
-     trgrad.f90 trgram.f90 trgsub.f90 trfout.f90 \
+     trgrad.f90 trgram.f90 trgsub.f90 trfout.f90 tr_write_csv.f90 \
      trloop.f90 trmenu.f90
 
 SRC2D=trg2d.f90
