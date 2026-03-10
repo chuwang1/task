@@ -42,7 +42,8 @@
       REAL(rkind):: &
            RS,RKAPL,SHEARL,PNEL,RHONI,DPDRL,DVEXBDRL,CEXB,CKAP,chi_cdbm, &
            PAL,PZL,ADFFI,ACHIE,ACHII,ACHIEB,ACHIIB,ACHIEGB,ACHIIGB, &
-           VTIL, GAMMA0, EXBfactor, SHRfactor
+           VTIL, GAMMA0, EXBfactor, SHRfactor, &
+            FRHO_E, FRHO_I
       REAL(rkind):: CHIIW,DIFHW,CHIEW,DIMPW, &
                 CHIIRB,DIFHRB,CHIERB,DIMPRB, &
                 CHIIKB,DIFHKB,CHIEKB,DIMPKB, &
@@ -1012,6 +1013,70 @@
             VGR4(NR,3)=0.D0
 
 
+         CASE(170:179)
+            ! External chi shape factor model
+            AKDWEL = CK0 * AKEXT_E(NR)
+            AKDWIL = CK1 * AKEXT_I(NR)
+            AKDWEL = MIN(MAX(AKDWEL, 0.001D0), 100.D0)
+            AKDWIL = MIN(MAX(AKDWIL, 0.001D0), 100.D0)
+            AKDW(NR,1) = AKDWEL
+            AKDW(NR,2) = AKDWIL
+            AKDW(NR,3) = AKDWIL
+            AKDW(NR,4) = AKDWIL
+            VGR1(NR,1) = AKEXT_E(NR)
+            VGR1(NR,2) = AKEXT_I(NR)
+            VGR1(NR,3) = 0.D0
+            VGR2(NR,1) = AKDWEL
+            VGR2(NR,2) = AKDWIL
+            VGR2(NR,3) = 0.D0
+            VGR3(NR,1) = CK0
+            VGR3(NR,2) = CK1
+            VGR3(NR,3) = 0.D0
+            VGR4(NR,1) = 0.D0
+            VGR4(NR,2) = 0.D0
+            VGR4(NR,3) = 0.D0
+
+         CASE(180:189)
+            ! Scaling-based anomalous transport model
+            SELECT CASE(MDLKAI)
+            CASE(180)
+               TAUE_TARGET = TAUE89
+            CASE(181)
+               TAUE_TARGET = TAUE98
+            CASE(182)
+               TAUE_TARGET = H_FACTOR_USER * TAUE89
+            CASE(183)
+               TAUE_TARGET = H_FACTOR_USER * TAUE98
+            CASE DEFAULT
+               TAUE_TARGET = TAUE98
+            END SELECT
+            IF(TAUE_TARGET < 1.D-10) TAUE_TARGET = 1.D-2
+            FRHO_E = AKEXT_E(NR)
+            FRHO_I = AKEXT_I(NR)
+            IF(FRHO_E < 1.D-10) FRHO_E = 0.1D0
+            IF(FRHO_I < 1.D-10) FRHO_I = 0.1D0
+            AKDWEL = C_SCALING * FRHO_E * CK0
+            AKDWIL = C_SCALING * FRHO_I * CK1
+            AKDWEL = MIN(MAX(AKDWEL, 0.01D0), 100.D0)
+            AKDWIL = MIN(MAX(AKDWIL, 0.01D0), 100.D0)
+            AKDW(NR,1) = AKDWEL
+            AKDW(NR,2) = AKDWIL
+            AKDW(NR,3) = AKDWIL
+            AKDW(NR,4) = AKDWIL
+            VGR1(NR,1) = FRHO_E
+            VGR1(NR,2) = FRHO_I
+            VGR1(NR,3) = TAUE_TARGET
+            VGR2(NR,1) = AKDWEL
+            VGR2(NR,2) = AKDWIL
+            VGR2(NR,3) = C_SCALING
+            VGR3(NR,1) = TAUE2
+            VGR3(NR,2) = TAUE2/MAX(TAUE_TARGET,1.D-10)
+            VGR3(NR,3) = 0.D0
+            VGR4(NR,1) = CK0
+            VGR4(NR,2) = CK1
+            VGR4(NR,3) = 0.D0
+
+
           CASE(230:239)
 
             RS=RA*RG(NR)
@@ -1115,6 +1180,7 @@
       REAL(rkind) :: RK22=2.55D0, RA22=0.45D0, RB22=0.43D0, RC22=0.43D0
       REAL(rkind) :: RK2=0.66D0 , RA2=1.03D0 , RB2=0.31D0 , RC2=0.74D0
       REAL(rkind),SAVE :: CDHSV
+      REAL(rkind) :: frac, factor  ! for model_chifixed=2,3
 
 !      DATA RK11,RA11,RB11,RC11/1.04D0,2.01D0,1.53D0,0.89D0/
 !      DATA RK12,RA12,RB12,RC12/1.20D0,0.76D0,0.67D0,0.56D0/
@@ -1271,6 +1337,35 @@
          ENDDO
       ENDDO
       IF(MDLEDGE.EQ.1) CDH=CDHSV
+
+!     ***** Modify chi based on model_chifixed *****
+      IF(model_chifixed.EQ.1) THEN
+         ! Mode 1: Use external chi from file
+         DO NR=1,NRMAX
+            AK(NR,1) = AKEXT_E(NR)
+            DO NS=2,NSM
+               AK(NR,NS) = AKEXT_I(NR)
+            ENDDO
+         ENDDO
+      ELSE IF(model_chifixed.EQ.2) THEN
+         ! Mode 2: Multiply internal chi by factor in core (r/a < 0.4)
+         DO NR=1,NRMAX
+            frac = 0.5D0 * (1.D0 - TANH((rm(NR) - 0.4D0) / 0.1D0))
+            factor = 1.D0 + (chifixed_factor - 1.D0) * frac
+            DO NS=1,NSM
+               AK(NR,NS) = AK(NR,NS) * factor
+            ENDDO
+         ENDDO
+      ELSE IF(model_chifixed.EQ.3) THEN
+         ! Mode 3: Multiply internal chi by factor in edge (r/a > 0.5)
+         DO NR=1,NRMAX
+            frac = 0.5D0 * (1.D0 + TANH((rm(NR) - 0.5D0) / 0.1D0))
+            factor = 1.D0 + (chifixed_factor - 1.D0) * frac
+            DO NS=1,NSM
+               AK(NR,NS) = AK(NR,NS) * factor
+            ENDDO
+         ENDDO
+      ENDIF
 
 !     ***** OFF-DIAGONAL TRANSPORT COEFFICIENTS *****
 

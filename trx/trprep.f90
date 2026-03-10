@@ -16,6 +16,7 @@ CONTAINS
     USE trmetric
     USE trpnf
     USE libnf
+    USE trfixed, ONLY: tr_prep_chifixed
     IMPLICIT NONE
     INTEGER,INTENT(OUT):: ierr
     INTEGER:: nr,ns,nnf,npm
@@ -82,6 +83,10 @@ CONTAINS
        write(6,'(A,I5)') 'XX tr_set_metric in tr_metric: ierr=',ierr
        STOP
     END IF
+
+!     *** LOAD EXTERNAL TRANSPORT COEFFICIENTS ***
+    
+    CALL tr_prep_chifixed
       
 !     *** CALCULATE ANEAVE and ANC, ANFE ***
 

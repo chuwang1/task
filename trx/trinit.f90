@@ -191,6 +191,15 @@ CONTAINS
       knam_profn_time='nprof_coef_data'
       knam_proft_time='tprof_coef_data'
 
+      !  model_chifixed: chi from external file
+      !       0 : use calculated chi from transport model
+      !       1 : read from file, with core reduction (0.5x for r/a<0.4)
+      !       2 : read from file, multiply core (r/a<0.4) by chifixed_factor
+      !       3 : read from file, multiply edge (r/a>0.5) by chifixed_factor
+      model_chifixed=0
+      knam_chifixed='Chi_Se_COREDIV.DAT'
+      chifixed_factor=1.0D0
+
 
       !  ==== IMPURITY ans neutral PARAMETERS ====
       
@@ -288,6 +297,14 @@ CONTAINS
       !  ***  MDLKAI.EQ. 160 : mmm7_1 (Multi-Mode transport Model) (no ExB)
       !                  161 : mmm7_1 (Multi-Mode transport Model) (with ExB)
 
+      !  ***  MDLKAI.EQ. 170 : External chi shape factor model
+      !                  171 : External chi shape factor model (variant)
+
+      !  ***  MDLKAI.EQ. 180 : Scaling-based transport (ITER89-P L-mode)
+      !                  181 : Scaling-based transport (IPB98(y,2) H-mode)
+      !                  182 : Scaling-based transport (User H-factor * ITER89-P)
+      !                  183 : Scaling-based transport (User H-factor * IPB98(y,2))
+
       !     +++++ WARNING +++++++++++++++++++++++++++++++++++++++++++
       !     +  Parameters below are valid only if MDLNCL /= 0,      +
       !     +  that is, one do not use NCLASS,                      +
@@ -335,6 +352,17 @@ CONTAINS
       MDLJBS = 5
       MDLKNC = 1
       MDLTPF = 0
+
+      !     ==== Scaling-based transport parameters (MDLKAI=180-189) ====
+
+      C_SCALING      = 1.0D0    ! Auto-adjustment coefficient
+      ALPHA_RELAX    = 0.5D0    ! Relaxation factor (0.3-0.7 recommended)
+      H_FACTOR_USER  = 1.0D0    ! User H-factor for MDLKAI=182,183
+      C_SCALING_MIN  = 0.1D0    ! Minimum C value
+      C_SCALING_MAX  = 10.0D0   ! Maximum C value
+      TAUE_TARGET    = 0.0D0    ! Calculated from scaling law
+      ISCALING_TYPE  = 1        ! 0: ITER89-P, 1: IPB98(y,2)
+      L_SCALING_CONVERGED = .FALSE.
 
       !     ==== NCLASS SWITCH ====
 

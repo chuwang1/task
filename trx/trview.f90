@@ -58,6 +58,13 @@ CONTAINS
       WRITE(6,'(A,A)') 'knam_profn_time ',knam_profn_time
       WRITE(6,'(A,I4)')'model_proft_time',model_proft_time
       WRITE(6,'(A,A)') 'knam_proft_time ',knam_proft_time
+      WRITE(6,630)      'model_chifxd',model_chifixed
+      WRITE(6,'(A,A)') 'knam_chifixed',knam_chifixed
+      IF(MDLKAI.GE.170.AND.MDLKAI.LE.189) THEN
+         WRITE(6,'(A,ES12.4)') 'C_SCALING    ',C_SCALING
+         WRITE(6,'(A,ES12.4)') 'ALPHA_RELAX  ',ALPHA_RELAX
+         WRITE(6,'(A,ES12.4)') 'H_FACTOR_USER',H_FACTOR_USER
+      END IF
       IF((MDLKAI.GE.1.AND.MDLKAI.LT.10).OR.ID.EQ.1) &
          WRITE(6,601) 'CKALFA',CKALFA,'CKBETA',CKBETA,'CKGUMA',CKGUMA
 

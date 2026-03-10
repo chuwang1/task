@@ -38,6 +38,8 @@ MODULE trparm
        MDLER,MDLNCL,NSLMAX, &
        MDLELM,ELMWID,ELMDUR,ELMNRD,ELMTRD,ELMENH, &
        MDLTC,MDLPCK,model_profn_time,model_proft_time,model_nevolve, &
+       model_chifixed,knam_chifixed,chifixed_factor, &
+       C_SCALING,ALPHA_RELAX,H_FACTOR_USER,C_SCALING_MIN,C_SCALING_MAX, &
        KNAMEQ,KNAMEQ2,KNAMTR,KFNLOG,KFNTXT,KFNCVS, &
        knam_profg_total,knam_profm_total
   PRIVATE

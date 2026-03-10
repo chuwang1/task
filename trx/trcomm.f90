@@ -63,6 +63,11 @@ MODULE trcomm_parm
   INTEGER:: model_nevolve  ! 0: density evolves normally, 1: density fixed from profile
   CHARACTER(LEN=128):: knam_profn_time,knam_proft_time
 
+  ! === external chi file parameters ===
+  INTEGER:: model_chifixed ! 0: use calculated chi, 1: read from file, 2: file*N(core), 3: file*N(edge)
+  REAL(rkind):: chifixed_factor  ! multiplication factor N for model_chifixed=2,3
+  CHARACTER(LEN=128):: knam_chifixed ! chi file name (space-separated format)
+
   ! === impurity and neutral parameters ===
 
   INTEGER:: MDLIMP,MDLNI
@@ -87,6 +92,16 @@ MODULE trcomm_parm
   REAL(rkind):: AD0,AV0,CNP,CNH,CDP,CDH,CNN,CDW(8)
   REAL(rkind):: CHP,CK0,CK1,CWEB,CALF,CKALFA,CKBETA,CKGUMA
   REAL(rkind):: alpha_max,QP_MAX
+
+  ! === Scaling-based transport parameters (MDLKAI=180-189) ===
+  REAL(rkind):: C_SCALING        ! Auto-adjustment coefficient (initial=1.0)
+  REAL(rkind):: ALPHA_RELAX      ! Relaxation factor for C adjustment (0.3-0.7)
+  REAL(rkind):: H_FACTOR_USER    ! User-specified H-factor for scaling
+  REAL(rkind):: C_SCALING_MIN    ! Minimum allowed C value
+  REAL(rkind):: C_SCALING_MAX    ! Maximum allowed C value
+  REAL(rkind):: TAUE_TARGET      ! Target confinement time from scaling law [s]
+  INTEGER:: ISCALING_TYPE        ! 0: ITER89-P, 1: IPB98(y,2)
+  LOGICAL:: L_SCALING_CONVERGED  ! Flag for convergence
 
   ! ==- radial electric field model parameter ===
 
@@ -294,7 +309,8 @@ MODULE trcomm
   REAL(rkind), DIMENSION(:)  , ALLOCATABLE :: & ! (NRM)
        ANC, ANFE, ANNU, ZEFF, PZC, PZFE, BETA, BETAP, BETAL, BETAPL, &
        BETAQ, PBM, PADD, VTOR, VPAR, VPRP, VPOL, WROT, ER, VEXB, WEXB, AGMP, &
-       VEXBP, WEXBP
+       VEXBP, WEXBP, &
+       AKEXT_E, AKEXT_I  ! external chi_e, chi_i from file
 
 !     ****** SOURCE VARIABLES ******
 ! TRSRC
@@ -633,6 +649,8 @@ MODULE trcomm
       IF(IERR.NE.0) GOTO 900
     ALLOCATE(VEXBP(NRMAX),WEXBP(NRMAX),STAT=IERR)
       IF(IERR.NE.0) GOTO 900
+    ALLOCATE(AKEXT_E(NRMAX),AKEXT_I(NRMAX),STAT=IERR)
+      IF(IERR.NE.0) GOTO 900
     ALLOCATE(WEXB(NRMAX),AGMP(NRMAX),AJ(NRMAX),AJOH(NRMAX),STAT=IERR)
       IF(IERR.NE.0) GOTO 900
     ALLOCATE(EZOH(NRMAX),QP(NRMAX),AJTOR(NRMAX),AJNB(NRMAX),STAT=IERR)
@@ -940,7 +958,7 @@ MODULE trcomm
     DEALLOCATE(RG,RM,RHOM,RHOG,BP,RDP,RPSI,RN,RT,RU,RW)
     DEALLOCATE(RNF,RTF,ANC,ANFE,ANNU,ZEFF,PZC,PZFE,BETA,BETAP,BETAL,BETAPL)
     DEALLOCATE(BETAQ,PBM,PADD,VTOR,VPAR,VPRP,VPOL,WROT,ER,VEXB,WEXB,AGMP)
-    DEALLOCATE(VEXBP,WEXBP)
+    DEALLOCATE(VEXBP,WEXBP,AKEXT_E,AKEXT_I)
     DEALLOCATE(AJ,AJOH, EZOH,QP,AJTOR,AJNB,AJRF,AJBS,QPINV)
     
     DEALLOCATE(SNB_NSNNBNR,PNB_NSNNBNR,PNBIN_NSNNBNR,PNBCL_NSNNBNR)
