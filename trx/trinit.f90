@@ -187,6 +187,7 @@ CONTAINS
       
       model_profn_time=0
       model_proft_time=0
+      model_nevolve=0  ! 0: density evolves normally, 1: density fixed from profile
       knam_profn_time='nprof_coef_data'
       knam_proft_time='tprof_coef_data'
 

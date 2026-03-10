@@ -18,6 +18,7 @@ CONTAINS
       USE TRCOMM
       USE trbpsd, ONLY: tr_bpsd_put, tr_bpsd_get,plasmaf
       USE trexec
+      USE trprof, ONLY: tr_reset_density
       USE libitp
       USE equnit
       IMPLICIT NONE
@@ -41,7 +42,10 @@ CONTAINS
 
       CALL tr_exec(IERR)
       IF(IERR.NE.0) GOTO 9000
-      
+
+      ! Reset density from profile if model_nevolve=1
+      IF(model_nevolve.EQ.1) CALL tr_reset_density
+
       DO nr=1,nrmax
          QPINV(nr)=(4.D0*PI**2*RDPVRHOG(nr))/(TTRHOG(nr)*ARRHOG(nr))
       END DO

@@ -37,7 +37,7 @@ MODULE trparm
        MDLEQB,MDLEQN,MDLEQT,MDLEQU,MDLEQZ,MDLEQ0,MDLEQE,MDLEOI, &
        MDLER,MDLNCL,NSLMAX, &
        MDLELM,ELMWID,ELMDUR,ELMNRD,ELMTRD,ELMENH, &
-       MDLTC,MDLPCK,model_profn_time,model_proft_time, &
+       MDLTC,MDLPCK,model_profn_time,model_proft_time,model_nevolve, &
        KNAMEQ,KNAMEQ2,KNAMTR,KFNLOG,KFNTXT,KFNCVS, &
        knam_profg_total,knam_profm_total
   PRIVATE

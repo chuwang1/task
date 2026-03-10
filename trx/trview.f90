@@ -53,6 +53,7 @@ CONTAINS
       WRITE(6,601) 'AD0   ',AD0,   'CHP   ',CHP,   'CWEB  ',CWEB,  'CALF  ',CALF
       WRITE(6,630)     'model_prof  ',model_prof
       WRITE(6,'(A,A)') 'knam_prof   ',knam_prof
+      WRITE(6,630)      'model_nevolv',model_nevolve
       WRITE(6,'(A,I4)')'model_profn_time',model_profn_time
       WRITE(6,'(A,A)') 'knam_profn_time ',knam_profn_time
       WRITE(6,'(A,I4)')'model_proft_time',model_proft_time

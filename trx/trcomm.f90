@@ -60,6 +60,7 @@ MODULE trcomm_parm
        PROFNU1,PROFNU2,PROFJ1,PROFJ2
   REAL(rkind):: ALP(7)
   INTEGER:: model_profn_time,model_proft_time
+  INTEGER:: model_nevolve  ! 0: density evolves normally, 1: density fixed from profile
   CHARACTER(LEN=128):: knam_profn_time,knam_proft_time
 
   ! === impurity and neutral parameters ===

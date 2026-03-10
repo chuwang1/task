@@ -21,9 +21,16 @@ MODULE trprof
   REAL(rkind),ALLOCATABLE:: time_proft(:)   ! time points t_i
   REAL(rkind),ALLOCATABLE:: coef_proft(:,:) ! coef data for t_i<= t <t_{i+1}
 
+  ! Module-level variables for storing multi-species density profile (model_prof=12)
+  INTEGER:: nrmax_prof12 = 0
+  REAL(rkind),ALLOCATABLE:: rs_prof12(:)          ! rho array
+  REAL(rkind),ALLOCATABLE:: rn_prof12(:,:)        ! density(nr,ns) array: ne, nD, nT, nHe
+  REAL(rkind),ALLOCATABLE:: uprof12(:,:,:)        ! spline coefficients(4,nr,ns)
+
   PUBLIC tr_prof
   PUBLIC tr_prof_impurity
   PUBLIC tr_prof_current
+  PUBLIC tr_reset_density  ! New: reset density from stored profile
 
   PUBLIC tr_set_profn  ! set coef matrix for n
   PUBLIC tr_set_proft  ! set coef matrix for nT
@@ -56,7 +63,7 @@ CONTAINS
       REAL(rkind),ALLOCATABLE:: &
            rs_prof(:),rn_prof(:),rdn_prof(:),uprof(:,:)
       INTEGER:: nrmax_prof,ierr,i
-      REAL(rkind):: R1,RN1
+      REAL(rkind):: R1,RN1,RN2,RN3,RN4
       TYPE(pl_prf_type),DIMENSION(nsmax):: plf
       REAL(rkind):: rn_pl(nsmax),rt_pl(nsmax)
 
@@ -167,6 +174,94 @@ CONTAINS
             END DO
          END DO
 
+      CASE(12)
+         ! *** Read multi-species density profile from CSV: rho, ne, nD, nT, nHe ***
+         WRITE(6,'(A)') '## Reading multi-species density profile (model_prof=12)'
+         CALL FROPEN(21,knam_prof,1,0,'PN',ierr)
+         IF(ierr.NE.0) THEN
+            WRITE(6,'(A,I8)') &
+                 'XX file open error: knam_prof: ierr=',ierr
+            STOP
+         END IF
+
+         ! --- count number of data ---
+         I=0
+         READ(21,'(A)')  ! skip header
+1200     CONTINUE
+         I=I+1
+         READ(21,*,ERR=1290,END=1300) R1,RN1,RN2,RN3,RN4
+         GO TO 1200
+1290     WRITE(6,*) 'XX prof12 read error at line',I
+         STOP
+1300     WRITE(6,'(A,I6)') '## prof12_data size=',I-1
+         nrmax_prof12=I-1
+
+         ! --- allocate arrays ---
+         IF(ALLOCATED(rs_prof12)) DEALLOCATE(rs_prof12)
+         IF(ALLOCATED(rn_prof12)) DEALLOCATE(rn_prof12)
+         IF(ALLOCATED(uprof12)) DEALLOCATE(uprof12)
+         ALLOCATE(rs_prof12(nrmax_prof12))
+         ALLOCATE(rn_prof12(nrmax_prof12,4))  ! 4 species: e, D, T, He
+         ALLOCATE(uprof12(4,nrmax_prof12,4))  ! spline coef for 4 species
+         REWIND(21)
+
+         ! --- read density profile data for all species ---
+         READ(21,'(A)')  ! skip header
+         DO I=1,nrmax_prof12
+            READ(21,*,ERR=1390,END=1400) rs_prof12(I), &
+                 rn_prof12(I,1),rn_prof12(I,2),rn_prof12(I,3),rn_prof12(I,4)
+         END DO
+         GOTO 1400
+1390     WRITE(6,*) 'XX prof12 data read error'
+         STOP
+
+         ! --- create spline for each species ---
+1400     CONTINUE
+         WRITE(6,'(A,I6,2ES12.4)') '## prof12 spline setup: n=', &
+              nrmax_prof12,rs_prof12(1),rs_prof12(nrmax_prof12)
+         BLOCK
+            REAL(rkind):: rdn_temp(nrmax_prof12)
+            INTEGER:: ns_loc
+            DO ns_loc=1,4
+               rdn_temp(1)=0.D0
+               CALL SPL1D(rs_prof12,rn_prof12(:,ns_loc),rdn_temp, &
+                    uprof12(:,:,ns_loc),nrmax_prof12,1,ierr)
+               IF(ierr.NE.0) THEN
+                  WRITE(6,*) 'XX prof12 spline error for species',ns_loc
+                  STOP
+               END IF
+               WRITE(6,'(A,I2,A)') '## Spline created for species ',ns_loc,' OK'
+            END DO
+         END BLOCK
+         CLOSE(21)
+
+         DO nr=1,nrmax
+            ! --- set interpolated multi-species density profile ---
+            ! Species mapping: 1=e, 2=D, 3=T, 4=He (matching CSV columns)
+            DO ns=1,MIN(nsmax,4)
+               CALL SPL1DF(RM(nr),RN(nr,ns),rs_prof12,uprof12(:,:,ns), &
+                    nrmax_prof12,ierr)
+               IF(ierr.NE.0) THEN
+                  WRITE(6,*) 'XX prof12 splinef error for species',ns,ierr
+                  STOP
+               END IF
+            END DO
+            ! For species beyond 4, scale from electron density
+            DO ns=5,nsmax
+               RN(nr,ns)=PN(ns)/PN(1)*RN(nr,1)
+            END DO
+            IF(nr.EQ.1.OR.MOD(nr,10).EQ.0) &
+                 WRITE(6,'(A,I6,5ES12.4)') &
+                 'prof12: ',nr,RM(nr),RN(nr,1),RN(nr,2),RN(nr,3),RN(nr,4)
+            ! --- set temperature and rotation profile ---
+            DO ns=1,nsmax
+               PROF   = (1.D0-(ALP(1)*RM(NR))**PROFT1(NS))**PROFT2(NS)
+               RT(NR,NS) = (PT(NS)-PTS(NS))*PROF+PTS(NS)
+               PROF   = (1.D0-(ALP(1)*RM(NR))**PROFU1(NS))**PROFU2(NS)
+               RU(NR,NS) = (PU(NS)-PUS(NS))*PROF+PUS(NS)
+            END DO
+         END DO
+
         case(41,42)
            call pl_read_prof_total(rm(nr),nsmax,rn_pl,rt_pl)
            do ns=1,nsmax
@@ -216,6 +311,21 @@ CONTAINS
 
          SUMPBM=SUMPBM+PBM(NR)
       ENDDO
+
+      ! Set boundary densities (PNS) for model_prof=12
+      IF(model_prof.EQ.12) THEN
+         ! Use the last grid point density as boundary value
+         DO ns=1,MIN(nsmax,4)
+            PNS(ns) = RN(nrmax,ns)
+            PNSS(ns) = PNS(ns)
+         END DO
+         DO ns=5,nsmax
+            PNS(ns) = PN(ns)/PN(1)*PNS(1)
+            PNSS(ns) = PNS(ns)
+         END DO
+         WRITE(6,'(A,4ES12.4)') '## Boundary densities (PNS): ', &
+              PNS(1),PNS(2),PNS(3),PNS(4)
+      END IF
 
       SELECT CASE(model_profn_time)
       CASE(1)
@@ -721,5 +831,38 @@ CONTAINS
     CLOSE(NFL)
     RETURN
   END SUBROUTINE tr_prep_proft
-  
+
+!     ***********************************************************
+!           RESET DENSITY FROM STORED PROFILE (for model_nevolve=1)
+!     ***********************************************************
+
+    SUBROUTINE tr_reset_density
+
+      USE trcomm
+      USE libspl1d
+      IMPLICIT NONE
+      INTEGER:: NR, NS, ierr
+
+      ! Only works when model_prof=12 and model_nevolve=1
+      IF(model_prof.NE.12) RETURN
+      IF(model_nevolve.NE.1) RETURN
+      IF(nrmax_prof12.LE.0) RETURN
+
+      ! Reset density for each species from stored spline data
+      DO NR=1,NRMAX
+         DO NS=1,MIN(NSMAX,4)
+            CALL SPL1DF(RM(NR),RN(NR,NS),rs_prof12,uprof12(:,:,NS), &
+                 nrmax_prof12,ierr)
+            IF(ierr.NE.0) THEN
+               WRITE(6,*) 'XX tr_reset_density: spline error',NS,ierr
+            END IF
+         END DO
+         ! For species beyond 4, scale from electron density
+         DO NS=5,NSMAX
+            RN(NR,NS)=PN(NS)/PN(1)*RN(NR,1)
+         END DO
+      END DO
+
+    END SUBROUTINE tr_reset_density
+
 END MODULE trprof
