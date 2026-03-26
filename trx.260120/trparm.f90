@@ -147,8 +147,9 @@ CONTAINS
              ' ',8X,'TIME_INT,MODEP,MDNI,MDLJQ,MDLTC,MDLPCK'/ &
              ' ',8X,'KNAMEQ,KNAMEQ2,KNAMTR,KFNLOG,KFNTXT,KFNCVS,'/ &
              ' ',8X,'MDLPSC,NPSCMAX,PSCIN,PSCR0,PSCRW,NSPSC,PSCIN_MAX,'/ &
-             ' ',8X,'knam_nfixed,knam_tfixed'/ &
-             ' ',8X,'model_nfixed,model_tfixed,model_nevolve')
+             ' ',8X,'knam_nfixed,knam_tfixed,knam_prlfixed'/ &
+             ' ',8X,'model_nfixed,model_tfixed,model_nevolve,'/ &
+             ' ',8X,'model_prlfixed,SIGMAV_SCALE_FACTOR,model_cdbm_smooth')
     END SUBROUTINE trplst
 
 !     ***** CHECK INPUT PARAMETERS *****

@@ -387,22 +387,64 @@ def solve_temperature_with_vprime(r, Vprime, ne, chi, Se, Te_bc, from_edge=True)
     return Te, Q
 
 
+def find_csv_by_title(title_keyword, search_dir='.'):
+    """Find a TR CSV file by searching for a keyword in its title line."""
+    import glob
+    for f in sorted(glob.glob(os.path.join(search_dir, 'tr_data_*.csv'))):
+        with open(f, 'r') as fh:
+            title = fh.readline().strip()
+        if title_keyword in title:
+            return f
+    return None
+
+
 def main():
     print("="*70)
     print("TEMPERATURE COMPARISON: TR vs OMFIT RADIATION")
     print("="*70)
 
+    # Auto-find CSV files by title content
+    csv_dens     = find_csv_by_title('n(NS)')
+    csv_temp     = find_csv_by_title('T(NS)')
+    csv_chi_e    = find_csv_by_title('AKE,AKNCE')
+    csv_chi_i    = find_csv_by_title('AKD,AKNCD')
+    csv_pin      = find_csv_by_title('@PIN [MW')
+    csv_power    = find_csv_by_title('POH,PNB,PNF')
+    csv_rad      = find_csv_by_title('PRSUM,PRB,PRC')
+    csv_pnb      = find_csv_by_title('PNBIN,PNBCL')
+    csv_pnf      = find_csv_by_title('PNFIN,PNFCL')
+
+    csv_map = {
+        'n(NS)':        csv_dens,
+        'T(NS)':        csv_temp,
+        'AKE':          csv_chi_e,
+        'AKD':          csv_chi_i,
+        'PIN':          csv_pin,
+        'POH/PNB/PNF':  csv_power,
+        'PRSUM/PRB':    csv_rad,
+        'PNBIN/PNBCL':  csv_pnb,
+        'PNFIN/PNFCL':  csv_pnf,
+    }
+
+    missing = [k for k, v in csv_map.items() if v is None]
+    if missing:
+        raise FileNotFoundError(f"Could not find CSV files for: {missing}")
+
+    print("\n   Auto-detected CSV files:")
+    for k, v in csv_map.items():
+        print(f"     {k:<16s} -> {os.path.basename(v)}")
+
     # Load TR data
     print("\n1. Loading TR simulation data...")
-    r_tr, dens, _ = read_tr_csv('tr_data_017.csv')
-    _, temp, _ = read_tr_csv('tr_data_019.csv')
-    _, chi_e_data, _ = read_tr_csv('tr_data_023.csv')
-    _, chi_i_data, _ = read_tr_csv('tr_data_024.csv')
-    _, pin_data, _ = read_tr_csv('tr_data_042.csv')
-    _, power_src, _ = read_tr_csv('tr_data_021.csv')
-    _, rad_exch, _ = read_tr_csv('tr_data_022.csv')
-    _, pnb_split, _ = read_tr_csv('tr_data_032.csv')
-    _, pnf_split, _ = read_tr_csv('tr_data_033.csv')
+    r_tr, dens, _ = read_tr_csv(csv_dens)
+    _, temp, _ = read_tr_csv(csv_temp)
+    _, chi_e_data, _ = read_tr_csv(csv_chi_e)
+    _, chi_i_data, _ = read_tr_csv(csv_chi_i)
+    _, pin_data, _ = read_tr_csv(csv_pin)
+    _, power_src, _ = read_tr_csv(csv_power)
+    _, rad_exch, _ = read_tr_csv(csv_rad)
+    _, pnb_split, _ = read_tr_csv(csv_pnb)
+    _, pnf_split, _ = read_tr_csv(csv_pnf)
 
     # Column names may be lowercase or uppercase
     ne_tr = dens.get('nE', dens.get('NE', np.zeros_like(r_tr)))
@@ -426,17 +468,20 @@ def main():
 
     # TR component-wise net source (statefile-like with explicit QEI diagnostic)
     POH_tr = power_src.get('POH', np.zeros_like(r_tr))
-    PRF_e_tr = power_src.get('PRF(1:NS)', np.zeros_like(r_tr))
+    # PRF column: try 'PRF' first, then 'PRF(1:NS)' for backward compat
+    PRF_e_tr = power_src.get('PRF', power_src.get('PRF(1:NS)', np.zeros_like(r_tr)))
     PRF_D_tr = power_src.get('Y6', np.zeros_like(r_tr))
     PRF_T_tr = power_src.get('Y7', np.zeros_like(r_tr))
     PRF_He_tr = power_src.get('Y8', np.zeros_like(r_tr))
 
-    PNBCL_e_tr = pnb_split.get('PNBCL(1:NS)', np.zeros_like(r_tr))
+    # PNBCL column: try 'PNBCL' first, then 'PNBCL(1:NS)'
+    PNBCL_e_tr = pnb_split.get('PNBCL', pnb_split.get('PNBCL(1:NS)', np.zeros_like(r_tr)))
     PNBCL_D_tr = pnb_split.get('Y3', np.zeros_like(r_tr))
     PNBCL_T_tr = pnb_split.get('Y4', np.zeros_like(r_tr))
     PNBCL_He_tr = pnb_split.get('Y5', np.zeros_like(r_tr))
 
-    PNFCL_e_tr = pnf_split.get('PNFCL(1:NS)', np.zeros_like(r_tr))
+    # PNFCL column: try 'PNFCL' first, then 'PNFCL(1:NS)'
+    PNFCL_e_tr = pnf_split.get('PNFCL', pnf_split.get('PNFCL(1:NS)', np.zeros_like(r_tr)))
     PNFCL_D_tr = pnf_split.get('Y3', np.zeros_like(r_tr))
     PNFCL_T_tr = pnf_split.get('Y4', np.zeros_like(r_tr))
     PNFCL_He_tr = pnf_split.get('Y5', np.zeros_like(r_tr))

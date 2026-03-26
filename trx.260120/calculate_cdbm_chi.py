@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 CDBM (Current Diffusivity Ballooning Mode) Transport Model
-Simple Python implementation to calculate chi profile shape
+Simple Python implementation to calculate chi profile shape.
 
-Based on MDLKAI=132 in TR code (MODEL=2: CDBM original with weak ExB shear)
+Includes a closer reproduction of the current Fortran MDLKAI=134 setup.
 """
 
 import numpy as np
@@ -93,6 +93,49 @@ def trcofs(shear, alpha, curv):
         fs[i] = max(fs1, fs2)
 
     return fs
+
+
+def fexb(x, shear, alpha):
+    """Fortran `FEXB` from `trcoef.f90`."""
+    x = np.asarray(x)
+    shear = np.asarray(shear)
+    alpha = np.asarray(alpha)
+
+    alpha_abs = np.where(np.abs(alpha) < 1.0e-3, 1.0e-3, np.abs(alpha))
+    beta = (0.5 * alpha_abs ** (-0.602) *
+            (13.018 - 22.28915 * shear + 17.018 * shear**2) /
+            (1.0 - 0.277584 * shear + 1.42913 * shear**2))
+
+    a = -10.0 / 3.0 * alpha + 16.0 / 3.0
+    gamma = np.empty_like(shear, dtype=float)
+    mask_neg = shear < 0.0
+    denom_neg = np.maximum(1.0 - shear - 2.0 * shear**2 - 3.0 * shear**3, 1.0e-12)
+    gamma[mask_neg] = 1.0 / (1.1 * np.sqrt(denom_neg[mask_neg])) + 0.75
+    gamma[~mask_neg] = ((1.0 - 0.5 * shear[~mask_neg]) /
+                        (1.1 - 2.0 * shear[~mask_neg] + a[~mask_neg] * shear[~mask_neg]**2 +
+                         4.0 * shear[~mask_neg]**3) + 0.75)
+
+    xg = np.where(gamma <= -20.0, 0.0,
+         np.where(gamma >= 20.0, 1.0e10, x**gamma))
+    arg = -beta * xg
+    return np.where(arg <= -20.0, 0.0,
+           np.where(arg >= 20.0, 1.0e10, np.exp(arg)))
+
+
+def smooth_boxcar_5(arr):
+    """Match the 5-point smoothing used for `S_HM` in `trcoef.f90`."""
+    arr = np.asarray(arr, dtype=float)
+    out = arr.copy()
+    if len(arr) < 3:
+        return out
+    out[0] = arr[0]
+    out[1] = (arr[0] + arr[1] + arr[2]) / 3.0
+    if len(arr) > 4:
+        for i in range(2, len(arr) - 2):
+            out[i] = (arr[i-2] + arr[i-1] + arr[i] + arr[i+1] + arr[i+2]) / 5.0
+    out[-2] = (arr[-3] + arr[-2] + arr[-1]) / 3.0
+    out[-1] = arr[-1]
+    return out
 
 
 def calculate_cdbm_chi(BB, RR, rs, qp, shear, ne, dpdr, rhoni,
@@ -219,6 +262,58 @@ def calculate_cdbm_chi(BB, RR, rs, qp, shear, ne, dpdr, rhoni,
     chi_cdbm = ckcdbm * fs * fk * fe * np.abs(alpha)**1.5 * delta2 * va / (qp * RR)
 
     return chi_cdbm, alpha, fs, fe
+
+
+def calculate_mdlkai134_chi(BB, RR, RA, rs, qp, shear, ne, dpdr, rhoni,
+                            dvexbdr=None, calf=1.0, cweb=1.0,
+                            ck0=12.0, smooth_shear=True):
+    """
+    Best-effort reproduction of current Fortran `MDLKAI=134` setup.
+
+    Matches the logic around `CASE(130:139)` in `trcoef.f90`:
+    - `MODEL = MDLKAI - 130 = 4`
+    - optional 5-point smoothing for `S_HM`
+    - `SHEARL = MAX(S_HM, -0.5)` when smoothing is enabled
+    - `SL = S^2 + 0.1^2`
+    - `cexb = CWEB * FEXB(abs(WE1), S, ALPHA)`
+
+    Notes:
+    - This script still uses the simplified Python CDBM kernel for `MODEL=4`.
+    - If `dvexbdr` is unavailable, zero ExB shear is assumed.
+    """
+    if dvexbdr is None:
+        dvexbdr = np.zeros_like(rs)
+
+    alpha = -2.0 * RMU0 * qp**2 * RR / BB**2 * dpdr
+    va = np.sqrt(BB**2 / (RMU0 * rhoni))
+    wpe2 = ne * AEE**2 / (AME * EPS0)
+    delta2 = VC**2 / wpe2
+    curv = -(rs / RR) * (1.0 - 1.0 / (qp**2))
+
+    shear_sm = smooth_boxcar_5(shear) if smooth_shear else np.asarray(shear, dtype=float)
+    shearl = np.maximum(shear_sm, -0.5) if smooth_shear else np.asarray(shear, dtype=float)
+
+    sl = shear**2 + 0.1**2
+    dve = dvexbdr * RA
+    we1 = -qp * RR / (sl * va) * dve
+    cexb = cweb * fexb(np.abs(we1), shear, alpha)
+
+    fs = trcofs(shearl, calf * alpha, curv)
+    fe = np.ones_like(fs)
+    chi_cdbm = 12.0 * fs * fe * np.abs(alpha)**1.5 * delta2 * va / (qp * RR)
+    chi_e = (ck0 / 12.0) * chi_cdbm
+
+    return {
+        'chi_e': chi_e,
+        'alpha': alpha,
+        'fs': fs,
+        'fe': fe,
+        'cexb': cexb,
+        'we1': we1,
+        'shear_used': shearl,
+        'shear_smoothed': shear_sm,
+        'curv': curv,
+    }
 
 
 def read_chi_corediv(filename='chi.dat'):
@@ -441,9 +536,15 @@ def main():
     ni = ne * 0.9  # Allow for impurities
     rhoni = ni * (2.0 + 3.0) / 2.0 * AMP  # Average ion mass
 
-    # Calculate CDBM chi with standard shear (shear_factor=1.0)
+    # Calculate CDBM chi with standard shear (legacy simplified model)
     chi_cdbm, alpha, fs, fe = calculate_cdbm_chi(
         BB, RR, rs, q, shear, ne, dpdr, rhoni, model=2, shear_factor=1.0
+    )
+
+    # Closer reproduction of the current Fortran MDLKAI=134 branch
+    mdlkai134 = calculate_mdlkai134_chi(
+        BB, RR, RA, rs, q, shear, ne, dpdr, rhoni,
+        dvexbdr=None, calf=1.0, cweb=1.0, ck0=12.0, smooth_shear=True
     )
 
     # Calculate CDBM chi with reduced shear (shear_factor=0.5)
@@ -470,6 +571,7 @@ def main():
     # TR default: CK0=12, CK1=12, so effective factor = 12/12 = 1.0
     CK0 = 12.0  # TR default value
     chi_e = (CK0 / 12.0) * chi_cdbm  # = 1.0 * chi_cdbm when CK0=12
+    chi_e_134 = mdlkai134['chi_e']
     chi_e_half = (CK0 / 12.0) * chi_cdbm_half
     chi_e_noshear = (CK0 / 12.0) * chi_cdbm_noshear
     chi_e_smin = (CK0 / 12.0) * chi_cdbm_smin
@@ -477,6 +579,7 @@ def main():
 
     # Limit extreme values
     chi_e = np.clip(chi_e, 0, 100)
+    chi_e_134 = np.clip(chi_e_134, 0, 100)
     chi_e_half = np.clip(chi_e_half, 0, 100)
     chi_e_noshear = np.clip(chi_e_noshear, 0, 100)
     chi_e_smin = np.clip(chi_e_smin, 0, 100)
@@ -487,7 +590,8 @@ def main():
 
     # Plot 1: Chi profile with jump elimination methods
     ax1 = axes[0, 0]
-    ax1.plot(rho, chi_e, 'b-', linewidth=2, label=r'$\chi$ (Original)')
+    ax1.plot(rho, chi_e, 'b-', linewidth=2, label=r'$\chi$ (Legacy model=2)')
+    ax1.plot(rho, chi_e_134, 'r-', linewidth=2, label=r'$\chi$ (Fortran-like MDLKAI=134)')
     # ax1.plot(rho, chi_e_smin, 'r--', linewidth=2, label=r'$\chi$ (s_min=0.5)')
     # ax1.plot(rho, chi_e_fsfloor, 'g--', linewidth=2, label=r'$\chi$ (fs_floor=0.3)')
     if chi_omfit_e is not None:
@@ -514,7 +618,8 @@ def main():
 
     # Plot 3: Form factor fs with different shear factors
     ax3 = axes[0, 2]
-    ax3.plot(rho, fs, 'b-', linewidth=2, label='s×1.0')
+    ax3.plot(rho, fs, 'b-', linewidth=2, label='legacy fs')
+    ax3.plot(rho, mdlkai134['fs'], 'r-', linewidth=2, label='MDLKAI=134 fs')
     ax3.plot(rho, fs_half, 'c-', linewidth=2, label='s×0.5')
     ax3.plot(rho, fs_noshear, 'm-', linewidth=2, label='s×0.0')
     ax3.set_xlabel('rho')
@@ -535,12 +640,14 @@ def main():
 
     # Plot 5: Magnetic shear
     ax5 = axes[1, 1]
-    ax5.plot(rho, shear, 'm-', linewidth=2)
+    ax5.plot(rho, shear, 'm-', linewidth=2, label='raw s')
+    ax5.plot(rho, mdlkai134['shear_smoothed'], 'k--', linewidth=2, label='S_HM (5-pt)')
     ax5.set_xlabel('rho')
     ax5.set_ylabel('s = (r/q)(dq/dr)')
     ax5.set_title('Magnetic Shear Profile')
     ax5.grid(True)
     ax5.set_xlim(0, 1)
+    ax5.legend(fontsize=8)
 
     # Plot 6: Density and pressure
     ax6 = axes[1, 2]
@@ -570,9 +677,13 @@ def main():
         print(f"{rho[idx]:<8.3f} {orig:<12.3f} {smin:<12.3f} {fsfl:<12.3f} {elim}")
     print("-" * 80)
     print("\nRecommendation: Use shear_min=0.5 or fs_floor=0.3 to eliminate chi jump")
+    print("\nFortran-like MDLKAI=134 summary:")
+    print(f"  chi range: {chi_e_134.min():.3f} - {chi_e_134.max():.3f} m^2/s")
+    print(f"  fs range : {mdlkai134['fs'].min():.3e} - {mdlkai134['fs'].max():.3e}")
+    print(f"  cexb range: {mdlkai134['cexb'].min():.3e} - {mdlkai134['cexb'].max():.3e}")
 
-    return rho, chi_e, chi_e_smin, chi_e_fsfloor, alpha, fs
+    return rho, chi_e, chi_e_134, chi_e_smin, chi_e_fsfloor, alpha, fs
 
 
 if __name__ == "__main__":
-    rho, chi_e, chi_e_smin, chi_e_fsfloor, alpha, fs = main()
+    rho, chi_e, chi_e_134, chi_e_smin, chi_e_fsfloor, alpha, fs = main()
