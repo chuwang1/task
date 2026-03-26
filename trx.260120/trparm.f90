@@ -38,6 +38,7 @@ MODULE trparm
        MDLER,MDLNCL,NSLMAX, &
        MDLELM,ELMWID,ELMDUR,ELMNRD,ELMTRD,ELMENH, &
        MDLTC,MDLPCK,model_nfixed,model_tfixed,model_nevolve, &
+       model_prlfixed,knam_prlfixed, &
        KNAMEQ,KNAMEQ2,KNAMTR,KFNLOG,KFNTXT,KFNCVS
 
   PRIVATE

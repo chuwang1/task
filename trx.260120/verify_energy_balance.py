@@ -101,7 +101,7 @@ def main():
     # --- Discover files by title (take LAST occurrence = final snapshot) ---
     # Use specific patterns to avoid matching multi-time-slice versions
     f_pin  = find_csv(idx, "@PIN [MW/m$+3$=]")      # single-snapshot PIN (4 species cols)
-    f_src  = find_csv(idx, "POH,PNB,PNF,-PRSUM")
+    f_src  = find_csv(idx, "POH,PNB,PNF,PRSUM")
     f_loss = find_csv(idx, "PRSUM,PRB,PRC,PRL,PCX,PIE,QEI")
     f_T    = find_csv(idx, "T(NS)")
     f_n    = find_csv(idx, "n(NS)")

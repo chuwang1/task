@@ -64,7 +64,9 @@ MODULE trcomm_parm
   REAL(rkind):: ALP(7)
   INTEGER:: model_nfixed,model_tfixed
   INTEGER:: model_nevolve  ! 0: density evolves normally, 1: density fixed from profile
+  INTEGER:: model_prlfixed ! 0: use calculated PRL, 1: read PRL from CSV file
   CHARACTER(LEN=128):: knam_nfixed,knam_tfixed
+  CHARACTER(LEN=128):: knam_prlfixed ! PRL profile file name (CSV format)
 
   ! === impurity and neutral parameters ===
 
@@ -316,7 +318,7 @@ MODULE trcomm
        RTG
   REAL(rkind), DIMENSION(:),     ALLOCATABLE :: & ! (NRM)
        AJ, AJOH, EZOH, QP, AJTOR, AJNB, AJRF, AJBS, QPINV, &
-       POH, PRB, PRC, PRL, PRSUM, &
+       POH, PRB, PRC, PRL, PRL_ext, PRSUM, &
        PCX, PIE, SIE, SCX, TSIE, TSCX
   REAL(rkind), DIMENSION(:,:),   ALLOCATABLE :: & ! (NSCM,NRM)
        AJNB_NNBNR,PEC_NEC,PLH_NLH,PIC_NIC
@@ -627,7 +629,7 @@ MODULE trcomm
       IF(IERR.NE.0) GOTO 900
     ALLOCATE(POH(NRMAX),PRB(NRMAX),PRC(NRMAX),PRSUM(NRMAX),STAT=IERR)
       IF(IERR.NE.0) GOTO 900
-    ALLOCATE(PRL(NRMAX),PCX(NRMAX),PIE(NRMAX),STAT=IERR)
+    ALLOCATE(PRL(NRMAX),PRL_ext(NRMAX),PCX(NRMAX),PIE(NRMAX),STAT=IERR)
       IF(IERR.NE.0) GOTO 900
     ALLOCATE(SIE(NRMAX),SCX(NRMAX),TSIE(NRMAX),TSCX(NRMAX),STAT=IERR)
       IF(IERR.NE.0) GOTO 900
@@ -816,7 +818,7 @@ MODULE trcomm
     DEALLOCATE(PNBCl_NSNR,PNFCL_NSNR)
     DEALLOCATE(PNBCl_NNBNR,PNFCL_NNFNR)
     DEALLOCATE(PNBCL_NSNNBNR,PNFCL_NSNNFNR)
-    DEALLOCATE(POH,PRB,PRC,PRL,PRSUM,PCX,PIE)
+    DEALLOCATE(POH,PRB,PRC,PRL,PRL_ext,PRSUM,PCX,PIE)
     DEALLOCATE(AJNB_NNBNR,PEC_NEC,PLH_NLH,PIC_NIC)
     DEALLOCATE(SIE,SCX,TSIE,TSCX,PIN,SSIN,PBCL,SPE,SPE_NSNPELNR)
     DEALLOCATE(PFCL,PRF,PRFV,AJRFV,RGFLX)
@@ -904,6 +906,7 @@ MODULE trcomm
     IF(ALLOCATED(PRB      ))     DEALLOCATE(PRB      )
     IF(ALLOCATED(PRC      ))     DEALLOCATE(PRC      )
     IF(ALLOCATED(PRL      ))     DEALLOCATE(PRL      )
+    IF(ALLOCATED(PRL_ext  ))     DEALLOCATE(PRL_ext  )
     IF(ALLOCATED(PRSUM    ))     DEALLOCATE(PRSUM    )
     IF(ALLOCATED(PCX      ))     DEALLOCATE(PCX      )
     IF(ALLOCATED(PIE      ))     DEALLOCATE(PIE      )

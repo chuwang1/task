@@ -25,6 +25,7 @@ MODULE trfixed
   PUBLIC tr_prof_tfixed ! set fixed temperature profile
   PUBLIC tr_prep_nfixed ! read fixed density pfofile parameters
   PUBLIC tr_prep_tfixed ! read fixed temperature profile parameters
+  PUBLIC tr_prep_prlfixed ! read PRL from CSV file
 
 CONTAINS
 
@@ -278,4 +279,74 @@ CONTAINS
     RETURN
   END SUBROUTINE tr_prep_tfixed
   
+! ============================================================
+!  Read PRL profile (line radiation) from external CSV file
+!  File format: CSV with header line
+!  Columns: r/a, prl [MW/m^3]
+! ============================================================
+  SUBROUTINE tr_prep_prlfixed
+    USE trcomm
+    USE libfio
+    IMPLICIT NONE
+    INTEGER:: nfl,nr,ndata_csv,i,j,ierr,ios
+    INTEGER,PARAMETER:: NMAX_CSV=300
+    REAL(rkind):: rho_csv(NMAX_CSV),prl_csv(NMAX_CSV)
+    REAL(rkind):: rho,frac
+    CHARACTER(LEN=256):: line
+
+    IF(model_prlfixed.EQ.0) RETURN
+
+    NFL=16
+    CALL fropen(NFL,knam_prlfixed,1,0,'prl',ierr)
+    IF(ierr.NE.0) THEN
+       WRITE(6,'(A)') 'XX tr_prep_prlfixed: cannot open file '//TRIM(knam_prlfixed)
+       model_prlfixed=0
+       RETURN
+    END IF
+
+    ! Skip header line
+    READ(NFL,'(A)',IOSTAT=ios) line
+
+    ! Read data: r/a, prl [MW/m^3]
+    ndata_csv=0
+    DO i=1,NMAX_CSV
+       READ(NFL,*,IOSTAT=ios) rho_csv(i),prl_csv(i)
+       IF(ios.NE.0) EXIT
+       ndata_csv=i
+    END DO
+    CLOSE(NFL)
+
+    IF(ndata_csv.LT.2) THEN
+       WRITE(6,'(A)') 'XX tr_prep_prlfixed: insufficient data in file'
+       model_prlfixed=0
+       RETURN
+    END IF
+
+    WRITE(6,'(A,I5,A)') '## tr_prep_prlfixed: read ',ndata_csv,' points from '//TRIM(knam_prlfixed)
+
+    ! Interpolate to TR grid and store in PRL_ext
+    ! CSV is in MW/m^3, internal PRL is in W/m^3 -> multiply by 1.D6
+    DO nr=1,NRMAX
+       rho = RG(nr)  ! r/a on TR grid
+       IF(rho.LE.rho_csv(1)) THEN
+          PRL_ext(nr) = prl_csv(1) * 1.D6
+       ELSE IF(rho.GE.rho_csv(ndata_csv)) THEN
+          PRL_ext(nr) = prl_csv(ndata_csv) * 1.D6
+       ELSE
+          DO j=1,ndata_csv-1
+             IF(rho.GE.rho_csv(j).AND.rho.LT.rho_csv(j+1)) THEN
+                frac = (rho - rho_csv(j))/(rho_csv(j+1) - rho_csv(j))
+                PRL_ext(nr) = ((1.D0-frac)*prl_csv(j) + frac*prl_csv(j+1)) * 1.D6
+                EXIT
+             END IF
+          END DO
+       END IF
+    END DO
+
+    WRITE(6,'(A,2ES12.4)') '## tr_prep_prlfixed: PRL_ext range = ', &
+         MINVAL(PRL_ext(1:NRMAX)),MAXVAL(PRL_ext(1:NRMAX))
+
+    RETURN
+  END SUBROUTINE tr_prep_prlfixed
+
 END MODULE trfixed

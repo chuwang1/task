@@ -189,6 +189,12 @@ CONTAINS
       knam_nfixed='nprof_coef_data'
       knam_tfixed='tprof_coef_data'
 
+      !  model_prlfixed: line radiation from external file
+      !       0 : use calculated PRL (PLFE+PLC+PLAR)
+      !       1 : read PRL from CSV file (knam_prlfixed), override PRL
+      model_prlfixed=0
+      knam_prlfixed='omfit_prl_for_tr.csv'
+
 
       !  ==== IMPURITY ans neutral PARAMETERS ====
       
