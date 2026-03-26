@@ -37,7 +37,7 @@ MODULE trparm
        MDLEQB,MDLEQN,MDLEQT,MDLEQU,MDLEQZ,MDLEQ0,MDLEQE,MDLEOI, &
        MDLER,MDLNCL,NSLMAX, &
        MDLELM,ELMWID,ELMDUR,ELMNRD,ELMTRD,ELMENH, &
-       MDLTC,MDLPCK,model_nfixed,model_tfixed, &
+       MDLTC,MDLPCK,model_nfixed,model_tfixed,model_nevolve, &
        KNAMEQ,KNAMEQ2,KNAMTR,KFNLOG,KFNTXT,KFNCVS
 
   PRIVATE
@@ -146,7 +146,7 @@ CONTAINS
              ' ',8X,'KNAMEQ,KNAMEQ2,KNAMTR,KFNLOG,KFNTXT,KFNCVS,'/ &
              ' ',8X,'MDLPSC,NPSCMAX,PSCIN,PSCR0,PSCRW,NSPSC,PSCIN_MAX,'/ &
              ' ',8X,'knam_nfixed,knam_tfixed'/ &
-             ' ',8X,'model_nfixed,model_tfixed')
+             ' ',8X,'model_nfixed,model_tfixed,model_nevolve')
     END SUBROUTINE trplst
 
 !     ***** CHECK INPUT PARAMETERS *****

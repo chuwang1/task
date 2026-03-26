@@ -185,6 +185,7 @@ CONTAINS
       
       model_nfixed=0
       model_tfixed=0
+      model_nevolve=0  ! 0: density evolves normally, 1: density fixed from profile
       knam_nfixed='nprof_coef_data'
       knam_tfixed='tprof_coef_data'
 

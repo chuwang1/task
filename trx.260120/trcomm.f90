@@ -63,6 +63,7 @@ MODULE trcomm_parm
        PROFNU1,PROFNU2,PROFJ1,PROFJ2
   REAL(rkind):: ALP(7)
   INTEGER:: model_nfixed,model_tfixed
+  INTEGER:: model_nevolve  ! 0: density evolves normally, 1: density fixed from profile
   CHARACTER(LEN=128):: knam_nfixed,knam_tfixed
 
   ! === impurity and neutral parameters ===
