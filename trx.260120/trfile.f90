@@ -36,14 +36,14 @@ CONTAINS
       WRITE(21) PROFN1,PROFN2,PROFT1,PROFT2,PROFU1,PROFU2,PROFJ1,PROFJ2, &
      &          ALP,AD0,AV0,CNP,CNH,CDP,CDH,CDW,CWEB,CALF
       WRITE(21) MDLKAI,MDLETA,MDLAD,MDLAVK,MDLJBS,MDLKNC,MDLTPF,MDLCD05
-      WRITE(21) TPRST,MDLST,IZERO
+      WRITE(21) TPRST,MDLST,model_nnf,IZERO
       WRITE(21) MODELG,NTEQIT
       WRITE(21) MDLNCL,MDLWLD,MDDIAG,MDLDW,MDLFLX,MDLER
       WRITE(21) MODEP,MDLNI,MDLJQ,MDLTC,MDLPCK
       WRITE(21) nnbmax,necmax,nlhmax,nicmax,npelmax,npscmax,nnfmax
       WRITE(21) (PNBIN(nnb),PNBR0(nnb),PNBRW(nnb),PNBCD(nnb),PNBVY(nnb), &
            PNBVW(nnb),PNBENG(nnb),PNBRTG(nnb), &
-           model_nnb(nnb),ns_nnb(nnb),nrmax_nnb(nnb),nnb=1,nnbmax)
+           model_nnb(nnb),ns_nnb(nnb),nraymax_nnb(nnb),nnb=1,nnbmax)
       WRITE(21) (PECIN(nec),PECR0(nec),PECRW(nec),PECCD(nec),PECTOE(nec), &
            PECNPR(nec), &
            MDLEC(nec),nec=1,necmax)
@@ -60,16 +60,14 @@ CONTAINS
            MDLPEL(npel),npel=1,npelmax)
       WRITE(21) (PSCIN(npsc),PSCR0(npsc),PSCRW(npsc), &
            MDLPSC(npsc),NSPSC(npsc),npsc=1,npscmax)
-      WRITE(21) (model_nnf(nnf),nnf=1,nnfmax)
+      WRITE(21) (model_nnf(nnf),ns_nnf(nnf),nnf=1,nnfmax)
       WRITE(21) PBSCD,MDLCD
       WRITE(21) DR,PNSS,T,TST,VSEC,WPPRE,TPRE,KFNLOG,NTMAX_SAVE
       WRITE(21) RG,RM,RN,RT,RU,RW,BP,RDP,RPSI,RNF,RTF,ANC,ANFE,ANNU,RDPVRHOG
       WRITE(21) VTOR,VPOL,AJOH,EZOH,ETA,AMZ
       WRITE(21) EPSLTR,LMAXTR,CHP,CK0,CK1,CKALFA,CKBETA,CKGUMA,CALF
-      WRITE(21) DVRHO,TTRHO,ABRHO,ABVRHO,ARRHO,AR1RHO,AR2RHO, &
-           RMJRHO,RMNRHO,RKPRHO,RJCB,EPSRHO
-      WRITE(21) DVRHOG,TTRHOG,ABRHOG,ABVRHOG,ARRHOG,AR1RHOG,AR2RHOG, &
-           ABB2RHOG,AIB2RHOG,ARHBRHOG,RKPRHOG
+      WRITE(21) DVRHO,TTRHO,ABRHO,ABVRHO,ARRHO,AR1RHO,AR2RHO,RMJRHO,RMNRHO,RKPRHO,RJCB,EPSRHO
+      WRITE(21) DVRHOG,TTRHOG,ABRHOG,ABVRHOG,ARRHOG,AR1RHOG,AR2RHOG,ABB2RHOG,AIB2RHOG,ARHBRHOG,RKPRHOG
       WRITE(21) RHOM,RHOG
       CLOSE(21)
 
@@ -88,15 +86,15 @@ CONTAINS
          WRITE(K5,'(I3)') 100+NTM1
          WRITE(K6,'(I3)') 100+NTS1
          WRITE(16,1670) K1(2:3),K2(2:3),K3(2:3),K4(2:3),K5(2:3),K6(2:3), &
-     &                  RIPS,RIPE,PN(1),PN(2),BB,PIC_TOT,PLH_TOT,PEC_TOT
+     &                  RIPS,RIPE,PN(1),PN(2),BB,PICTOT,PLHTOT,PLHNPR
  1670    FORMAT(' '/ &
      &          ' ','## DATE: ', &
      &              A2,'-',A2,'-',A2,'  ',A2,':',A2,':',A2,' : ', &
      &              '  FILE: ',A40/ &
      &          ' ',3X,'RIPS  =',1PD10.3,'  RIPE  =',1PD10.3, &
      &               '  PNE   =',1PD10.3,'  PNI   =',1PD10.3/ &
-     &          ' ',3X,'BB    =',1PD10.3,' PIC_TOT=',1PD10.3, &
-     &               ' PLH_TOT=',1PD10.3,' PEC_TOT=',1PD10.3)
+     &          ' ',3X,'BB    =',1PD10.3,'  PICTOT=',1PD10.3, &
+     &               '  PLHTOT=',1PD10.3,'  PLHNPR=',1PD10.3)
          WRITE(16,1671) T, &
      &                WPT,TAUE1,TAUE2,TAUE89, &
      &                BETAP0,BETAPA,BETA0,BETAA
@@ -126,13 +124,13 @@ CONTAINS
      &          ' ',3X,'AJT   =',1PD10.3,'  AJOHT =',1PD10.3, &
      &               '  AJNBT =',1PD10.3,'  AJBST =',1PD10.3)
 
-         WRITE(16,1674) PINT,POHT,PNB_TOT, &
-     &                PIC_TOT+PLH_TOT+PEC_TOT, &
+         WRITE(16,1674) PINT,POHT,PNBT, &
+     &                PRFT(1)+PRFT(2)+PRFT(3)+PRFT(4), &
      &                POUT,PRLT,PCXT,PIET
- 1674    FORMAT(' ',3X,'PINT   =',1PD10.3,'  POHT   =',1PD10.3, &
-     &               '  PNB_TOT=',1PD10.3,'  PRF_TOT =',1PD10.3/ &
-     &          ' ',3X,'POUT   =',1PD10.3,'  PRLT   =',1PD10.3, &
-     &               '  PCXT   =',1PD10.3,'  PIETE  =',1PD10.3)
+ 1674    FORMAT(' ',3X,'PINT  =',1PD10.3,'  POHT  =',1PD10.3, &
+     &               '  PNBT  =',1PD10.3,'  PRFT  =',1PD10.3/ &
+     &          ' ',3X,'POUT  =',1PD10.3,'  PRLT  =',1PD10.3, &
+     &               '  PCXT  =',1PD10.3,'  PIETE =',1PD10.3)
 
       CLOSE(16)
 
@@ -178,7 +176,7 @@ CONTAINS
       READ(21) nnbmax,necmax,nlhmax,nicmax,npelmax,npscmax,nnfmax
       READ(21) (PNBIN(nnb),PNBR0(nnb),PNBRW(nnb),PNBCD(nnb),PNBVY(nnb), &
            PNBVW(nnb),PNBENG(nnb),PNBRTG(nnb), &
-           model_nnb(nnb),ns_nnb(nnb),nrmax_nnb(nnb),nnb=1,nnbmax)
+           model_nnb(nnb),ns_nnb(nnb),nraymax_nnb(nnb),nnb=1,nnbmax)
       READ(21) (PECIN(nec),PECR0(nec),PECRW(nec),PECCD(nec),PECTOE(nec), &
            PECNPR(nec), &
            MDLEC(nec),nec=1,necmax)
@@ -195,16 +193,14 @@ CONTAINS
            MDLPEL(npel),npel=1,npelmax)
       READ(21) (PSCIN(npsc),PSCR0(npsc),PSCRW(npsc), &
            MDLPSC(npsc),NSPSC(npsc),npsc=1,npscmax)
-      READ(21) (model_nnf(nnf),nnf=1,nnfmax)
+      READ(21) (model_nnf(nnf),ns_nnf(nnf),nnf=1,nnfmax)
       READ(21) PBSCD,MDLCD
       READ(21) DR,PNSS,T,TST,VSEC,WPPRE,TPRE,KFNLOG,NTMAX_SAVE
       READ(21) RG,RM,RN,RT,RU,RW,BP,RDP,RPSI,RNF,RTF,ANC,ANFE,ANNU,RDPVRHOG
       READ(21) VTOR,VPOL,AJOH,EZOH,ETA,AMZ
       READ(21) EPSLTR,LMAXTR,CHP,CK0,CK1,CKALFA,CKBETA,CKGUMA,CALF
-      READ(21) DVRHO,TTRHO,ABRHO,ABVRHO,ARRHO,AR1RHO,AR2RHO, &
-           RMJRHO,RMNRHO,RKPRHO,RJCB,EPSRHO
-      READ(21) DVRHOG,TTRHOG,ABRHOG,ABVRHOG,ARRHOG,AR1RHOG,AR2RHOG, &
-           ABB2RHOG,AIB2RHOG,ARHBRHOG,RKPRHOG
+      READ(21) DVRHO,TTRHO,ABRHO,ABVRHO,ARRHO,AR1RHO,AR2RHO,RMJRHO,RMNRHO,RKPRHO,RJCB,EPSRHO
+      READ(21) DVRHOG,TTRHOG,ABRHOG,ABVRHOG,ARRHOG,AR1RHOG,AR2RHOG,ABB2RHOG,AIB2RHOG,ARHBRHOG,RKPRHOG
       READ(21) RHOM,RHOG
       CLOSE(21)
 

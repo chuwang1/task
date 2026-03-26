@@ -10,8 +10,8 @@ include ../mtxp/make.mtxp
 #LIB_MTX=$(LIBXMTX_KSP)
 #LIBX_MTX=$(LIBX_MTX_KSP)
 
-FFLAGS = $(OFLAGS)
-#FFLAGS = $(DFLAGS)
+#FFLAGS = $(OFLAGS)
+FFLAGS = $(DFLAGS)
 
 OBJDIR=./obj
 
@@ -24,17 +24,17 @@ ${OBJDIR}/%.o:%.f
 ${OBJDIR}/%.o:%.f90
 	$(FCFREE) $(FFLAGS) -c $< -o $@ $(MODDIR) $(MODINCLUDE)
 
-SRCS=trcomm.f90 trlib.f90 trbpsd.f90 libsigma.f90 libnf.f90 \
+SRCS=trcomm.f90 trbpsd.f90 libnf.f90 libsigma.f90 \
      trinit.f90 trparm.f90 trview.f90 \
-     trmetric.f90 trprof.f90 \
+     trmetric.f90 trfixed.f90 trprof.f90 trprep.f90 \
      trncls.f90 trcytran.f90 trcoll.f90 \
      trfile.f90 trhelp.f90 \
-     trpnf.f90 trfixed.f90 trprep.f90 \
+     trpnf.f90 \
      trexec.f90 trcalc.f90 \
      tradat.f90 trmodels.f90 trcoef.f90 tritg.f90 \
      trrslt.f90 trpnb.f90 trprf.f90 trpel.f90 trpsc.f90 \
      trgout.f90 trgrar.f90 trgrat.f90 trgrap.f90 trgrae.f90 \
-     trgrad.f90 trgram.f90 trgsub.f90 trfout.f90 tr_write_csv.f90 \
+     trgrad.f90 trgram.f90 trgsub.f90 trfout.f90 \
      trloop.f90 trmenu.f90
 
 SRC2D=trg2d.f90
@@ -88,8 +88,8 @@ tr2: $(LIBS2) $(OBJDIR)/trmain.o
 tr3: $(LIBS3) $(OBJDIR)/trmain.o 
 	$(FLINKER) $(OBJDIR)/trmain.o $(LIBS3) -o $@ $(FFLAGS) $(FLIBS) $(LIBX_MTX)
 
-trplot: $(OBJDIR)/trcomm.o $(OBJDIR)/trplot.o 
-	$(FLINKER) $(OBJDIR)/trcomm.o $(OBJDIR)/trprof.o $(OBJDIR)/trplot.o $(LIBS) -o $@ $(FFLAGS) $(FLIBS) $(LIBX_MTX)
+trplot: $(OBJDIR)/trcomm.o $(OBJDIR)/trfixed.o $(OBJDIR)/trplot.o 
+	$(FLINKER) $(OBJDIR)/trcomm.o $(OBJDIR)/trfixed.o $(OBJDIR)/trplot.o $(LIBS) -o $@ $(FFLAGS) $(FLIBS) $(LIBX_MTX)
 
 clean : 
 	-rm -f ./#* ./*~ $(OBJDIR)/*.o $(OBJDIR)/*/*.o $(MOD)/*.mod $(MOD)/*/*.mod core *.a
@@ -104,11 +104,8 @@ distclean: clean
 
 testsigma: $(OBJDIR)/testsigma.o
 	$(FLINKER) $(OBJDIR)/testsigma.o $(LIBS2) -o $@ $(FFLAGS) $(FLIBS) $(LIBX_MTX)
-
-test_libnf: $(LIBS2) $(OBJDIR)/test_libnf.o 
+test_libnf: $(LIBS2) $(OBJDIR)/test_libnf.o
 	$(FLINKER) $(OBJDIR)/test_libnf.o $(LIBS2) -o $@ $(FFLAGS) $(FLIBS) $(LIBX_MTX)
-
-
 
 $(OBJDIR)/trcomm.o : trcomm.f90 ../pl/plcomm.f90 
 $(OBJDIR)/trmain.o : trmain.f90 trcomm.f90  
@@ -116,6 +113,7 @@ $(OBJDIR)/trmenu.o : trmenu.f90 trcomm.f90
 $(OBJDIR)/trinit.o : trinit.f90 trcomm.f90
 $(OBJDIR)/trparm.o : trparm.f90 trcomm.f90
 $(OBJDIR)/trview.o : trview.f90 trcomm.f90
+$(OBJDIR)/trfixed.o : trfixed.f90 trcomm.f90
 $(OBJDIR)/trprep.o : trprep.f90 trcomm.f90
 $(OBJDIR)/trprof.o : trprof.f90 trcomm.f90
 $(OBJDIR)/trmetric.o : trmetric.f90 trcomm.f90
@@ -124,7 +122,7 @@ $(OBJDIR)/trbpsd.o : trbpsd.f90 trcomm.f90
 $(OBJDIR)/tradat.o : tradat.f90 trcomm.f90
 $(OBJDIR)/trcoll.o : trcoll.f90 trcomm.f90
 $(OBJDIR)/trloop.o : trloop.f90 trcomm.f90
-$(OBJDIR)/trexec.o : trexec.f90 trcomm.f90 trprof.f90
+$(OBJDIR)/trexec.o : trexec.f90 trcomm.f90 trfixed.f90
 $(OBJDIR)/trpl.o : trpl.f90 trcomm.f90
 $(OBJDIR)/trrslt.o : trrslt.f90 trcomm.f90
 $(OBJDIR)/trcalc.o : trcalc.f90 trcomm.f90
@@ -133,7 +131,8 @@ $(OBJDIR)/trajbs.o : trajbs.f90 trcomm.f90
 $(OBJDIR)/trpnb.o  : trpnb.f90  trcomm.f90 
 $(OBJDIR)/trprf.o  : trprf.f90  trcomm.f90 
 $(OBJDIR)/libnf.o  : libnf.f90 trcomm.f90 
-$(OBJDIR)/trpnf.o  : trpnf.f90  libnf.f90 trcomm.f90 
+$(OBJDIR)/libsigma.o  : libsigma.f90 trcomm.f90 
+$(OBJDIR)/trpnf.o  : trpnf.f90  libsigma.f90 trcomm.f90 
 $(OBJDIR)/trpel.o  : trpel.f90  trcomm.f90 
 $(OBJDIR)/trpsc.o  : trpsc.f90  trcomm.f90 
 
@@ -153,4 +152,3 @@ $(OBJDIR)/trmodels.o : trmodels.f90  trcomm.f90
 $(OBJDIR)/trncls.o : trncls.f90 trcomm.f90 ../trlib/nclass/pamx_mi.inc \
            ../trlib/nclass/pamx_ms.inc ../trlib/nclass/pamx_mz.inc
 $(OBJDIR)/trcytran.o: trcytran.f90
-$(OBJDIR)/trlib.o: trlib.f90 trcomm.f90

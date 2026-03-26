@@ -53,18 +53,6 @@ CONTAINS
       WRITE(6,601) 'AD0   ',AD0,   'CHP   ',CHP,   'CWEB  ',CWEB,  'CALF  ',CALF
       WRITE(6,630)     'model_prof  ',model_prof
       WRITE(6,'(A,A)') 'knam_prof   ',knam_prof
-      WRITE(6,630)      'model_nevolv',model_nevolve
-      WRITE(6,'(A,I4)')'model_profn_time',model_profn_time
-      WRITE(6,'(A,A)') 'knam_profn_time ',knam_profn_time
-      WRITE(6,'(A,I4)')'model_proft_time',model_proft_time
-      WRITE(6,'(A,A)') 'knam_proft_time ',knam_proft_time
-      WRITE(6,630)      'model_chifxd',model_chifixed
-      WRITE(6,'(A,A)') 'knam_chifixed',knam_chifixed
-      IF(MDLKAI.GE.170.AND.MDLKAI.LE.189) THEN
-         WRITE(6,'(A,ES12.4)') 'C_SCALING    ',C_SCALING
-         WRITE(6,'(A,ES12.4)') 'ALPHA_RELAX  ',ALPHA_RELAX
-         WRITE(6,'(A,ES12.4)') 'H_FACTOR_USER',H_FACTOR_USER
-      END IF
       IF((MDLKAI.GE.1.AND.MDLKAI.LT.10).OR.ID.EQ.1) &
          WRITE(6,601) 'CKALFA',CKALFA,'CKBETA',CKBETA,'CKGUMA',CKGUMA
 
@@ -79,10 +67,7 @@ CONTAINS
       WRITE(6,602) 'LMAXTR',LMAXTR,'NRMAX ',NRMAX, 'NTMAX ',NTMAX, 'NTSTEP',NTSTEP
       WRITE(6,602) 'NGRSTP',NGRSTP,'NGTSTP',NGTSTP,'NGPST ',NGPST, 'IZERO ',IZERO
       WRITE(6,602) 'MDLST ',MDLST, 'MDLCD ',MDLCD
-      WRITE(6,630) 'model_pnf   ',model_pnf
-      WRITE(6,630) 'model_nnf(1)',model_nnf(1)
-      WRITE(6,630) 'model_prlfix',model_prlfixed
-      IF(model_prlfixed.GE.1) WRITE(6,'(A,A)') 'knam_prlfix   ',knam_prlfixed
+      WRITE(6,630) 'model_nnf   ',model_nnf
 
       IF(MDLIMP.GT.0) THEN
          WRITE(6,602) 'MDLIMP',MDLIMP
@@ -111,7 +96,7 @@ CONTAINS
          DO NNB=1,NNBMAX
             IF(PNBIN(NNB).GT.0.D0) THEN
                WRITE(6,634) NNB, &
-                    'nrmax_nnb',nrmax_nnb(nnb), &
+                    'nraymax_nnb',nraymax_nnb(nnb), &
                     'ns_nnb   ',ns_nnb(nnb), &
                     'PNBCD ',PNBCD(nnb)
             END IF
@@ -252,6 +237,7 @@ CONTAINS
       WRITE(6,'(A,A)') 'KFNLOG =',TRIM(kfnlog)
       WRITE(6,'(A,A)') 'KFNTXT =',TRIM(kfntxt)
       WRITE(6,'(A,A)') 'KFNCVS =',TRIM(kfncvs)
+
       RETURN
 
 601   FORMAT(' ',A6,'=',1PE11.3 :2X,A6,'=',1PE11.3: &
@@ -273,7 +259,6 @@ CONTAINS
 631   FORMAT(' ',A12,'=',ES12.4)
 632   FORMAT(' ',I2,1X,A9,I5,4X,3(1X,A6,ES12.4))
 633   FORMAT(' ',I2,4(1X,A6,ES12.4))
-634   FORMAT(' ',I2,2(1X,A9,I5,4X),2(1X,A6,ES12.4))
-640   FORMAT(' ',A16,'=',I16)
+634   FORMAT(' ',I2,2(1X,A11,I5,4X),2(1X,A6,ES12.4))
     END SUBROUTINE tr_view
 END MODULE trview

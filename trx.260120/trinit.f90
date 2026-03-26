@@ -121,8 +121,6 @@ CONTAINS
       !    ==== PROFILE PARAMETERS ====
 
       !    model_prof: profile model
-      !                0: default profile file with PROFN/T/U/NU/J
-      !               11: dennsity profile
       !    knam_prof: profile data file name
       
       !    PROFN* : PROFILE PARAMETER OF INITIAL DENSITY
@@ -161,20 +159,20 @@ CONTAINS
       ALP(5) = 1.0D0
       ALP(6) = 1.0D0
       
-      !  ====== time dependent profile =====      
+      !  ====== Fixed profile =====      
 
-      !  model_profn_time: for density profile
-      !  model_porft_time: for temperature profile
+      !  model_nfixed: for density profile
+      !  model_tfixed: for temperature profile
       !     0: no fixed profile      
       !     1: fixed profile (x=n for density, x=t for temperatrue) 
       !     2: fixed profile for rho_min_xfixed <= rho <= rho_max_xfixed
       !     read parameters from file 'xprof_coef_data'
-      !        nmax_profx_time:         number of time points
-      !        ndata_profx_time:         number of coefficients
-      !        rho_min_profx:           rho minimum of fixed profile
-      !        rho_max_profx:           rho maximum of fixed profile
-      !        time_profx(ntime):       start time of fixed profile   
-      !        coef_profx(ndata,ntime): coefficients of fixed profile
+      !        ntime_xfixed_max:         number of time points
+      !        ndata_xfixed_max:         number of coefficients
+      !        rho_min_xfixed:           rho minimum of fixed profile
+      !        rho_max_xfixed:           rho maximum of fixed profile
+      !        time_xfixed(ntime):       start time of fixed profile   
+      !        coef_xfixed(ndata,ntime): coefficients of fixed profile
       !        f(nr)=coef(0) &
       !             +0.5D0*coef(1) &
       !             *(tanh((1.D0-coef(2)*coef(3)-rho(nr))/coef(3))+1.D0) &
@@ -182,23 +180,13 @@ CONTAINS
       !             +0.5D0*coef(8)*(1.D0-erf((rho(nr)-coef(9))
       !              /SQRT(2.D0*coef(10))))
       !
-      !  knam_profn_time: density fixed profile file name
-      !  knam_proft_time: temperature fixed profile file name
+      !  knam_nfixed: density fixed profile file name
+      !  knam_tfixed: temperature fixed profile file name
       
-      model_profn_time=0
-      model_proft_time=0
-      model_nevolve=0  ! 0: density evolves normally, 1: density fixed from profile
-      knam_profn_time='nprof_coef_data'
-      knam_proft_time='tprof_coef_data'
-
-      !  model_chifixed: chi from external file
-      !       0 : use calculated chi from transport model
-      !       1 : read from file, with core reduction (0.5x for r/a<0.4)
-      !       2 : read from file, multiply core (r/a<0.4) by chifixed_factor
-      !       3 : read from file, multiply edge (r/a>0.5) by chifixed_factor
-      model_chifixed=0
-      knam_chifixed='Chi_Se_COREDIV.DAT'
-      chifixed_factor=1.0D0
+      model_nfixed=0
+      model_tfixed=0
+      knam_nfixed='nprof_coef_data'
+      knam_tfixed='tprof_coef_data'
 
 
       !  ==== IMPURITY ans neutral PARAMETERS ====
@@ -297,14 +285,6 @@ CONTAINS
       !  ***  MDLKAI.EQ. 160 : mmm7_1 (Multi-Mode transport Model) (no ExB)
       !                  161 : mmm7_1 (Multi-Mode transport Model) (with ExB)
 
-      !  ***  MDLKAI.EQ. 170 : External chi shape factor model
-      !                  171 : External chi shape factor model (variant)
-
-      !  ***  MDLKAI.EQ. 180 : Scaling-based transport (ITER89-P L-mode)
-      !                  181 : Scaling-based transport (IPB98(y,2) H-mode)
-      !                  182 : Scaling-based transport (User H-factor * ITER89-P)
-      !                  183 : Scaling-based transport (User H-factor * IPB98(y,2))
-
       !     +++++ WARNING +++++++++++++++++++++++++++++++++++++++++++
       !     +  Parameters below are valid only if MDLNCL /= 0,      +
       !     +  that is, one do not use NCLASS,                      +
@@ -352,23 +332,6 @@ CONTAINS
       MDLJBS = 5
       MDLKNC = 1
       MDLTPF = 0
-
-      !     ==== Scaling-based transport parameters (MDLKAI=180-189) ====
-
-      C_SCALING      = 1.0D0    ! Auto-adjustment coefficient
-      ALPHA_RELAX    = 0.5D0    ! Relaxation factor (0.3-0.7 recommended)
-      H_FACTOR_USER  = 1.0D0    ! User H-factor for MDLKAI=182,183
-      C_SCALING_MIN  = 0.1D0    ! Minimum C value
-      C_SCALING_MAX  = 10.0D0   ! Maximum C value
-      TAUE_TARGET    = 0.0D0    ! Calculated from scaling law
-      ISCALING_TYPE  = 1        ! 0: ITER89-P, 1: IPB98(y,2)
-      L_SCALING_CONVERGED = .FALSE.
-
-      !  model_prlfixed: line radiation from external file
-      !       0 : use calculated PRL
-      !       1 : read PRL from CSV file (knam_prlfixed), override PRL
-      model_prlfixed=0
-      knam_prlfixed='omfit_prl_for_tr.csv'
 
       !     ==== NCLASS SWITCH ====
 
@@ -497,47 +460,41 @@ CONTAINS
          ELMENH(NS)=1.D0
       END DO
 
-  !  ==== FUSION REACTION PARAMETERS ====
+      !  ==== FUSION REACTION PARAMETERS ====
 
-  !   model_pnf  : FUSION REACTION MODEL TYPE
-      
-  !   model_pnf=0 : no fusion reaction
-  !   model_pnf=1 : D + T -> He4 + n              nnfmax=1  nsmax=4 DT
-  !   model_pnf=2 : D + D -> T + p                nnfmax=4  nsmax=6 DD1 DD2
-  !                 D + D -> He3 + n                                DD3
-  !                 D + T -> He4 + n                                DT
-  !   model_pnf=3 : D + D -> T + p                nnfmax=6  nsmax=6 DD1 DD2
-  !                 D + D -> He3 + n                                DD3
-  !                 D + T -> He4 + n                                DT
-  !                 D + He3 -> He4 + p                              DHe31 DHe32
-  !   model_pnf=4 : D + D -> T + p                nnfmax=13 nsmax=7 DD1 DD2
-  !                 D + D -> He3 + n                                DD3
-  !                 D + T -> He4 + n                                DT
-  !                 D + He3 -> He4 + p                              DH31 DHe32
-  !                 T + T -> He4 + 2n                               TT
-  !                 T + He3 -> He4 + p + n                          THe31 THe32
-  !                 T + He3 -> He4 + D                              THe33 THe34
-  !                 T + He3 -> He5 + p                              THe35 THe36
-  
-  !   model_pnf=12: D + D -> T + p   | T + He4/2  nnfmax=4  nsmax=4 DD1 DD2
-  !                 D + D -> He3 + n ! He4 + n                      DD3
-  !                 D + T -> He4 + n                                DT
-  !   model_pnf=14: D + D -> T + p                nnfmax=13 nsmax=6 DD1 DD2
-  !                 D + D -> He3 + n                                DD3
-  !                 D + T -> He4 + n                                DT
-  !                 D + He3 -> He4 + p                              DHe31 DHe32
-  !                 T + T -> He4 + 2n                               TT
-  !                 T + He3 -> He4 + p + n                          THe31 THe32
-  !                 T + He3 -> He4 + D                              THe33 THe34
-  !                 T + He3 -> He5 + p ! He4 + p                    THe35 THe36
-      
+      !  nnfmax : number of fusion product id
+      !  model_nnf  : FUSION REACTION MODEL TYPE
+      !        0:OFF
+      !        1:ON He4 (DT) without particle source
+      !        2:ON He4 (DT) with particle source
+      !        3:ON He4 (DT) with NB D beam component without particle source
+      !        4:ON He4 (DT) with NB D beam component particle source
+      !       11:ON H   (DD) without particle source
+      !       12:ON H   (DD) with particle source
+      !       13:ON H   (DD) with NB beam component without particle source
+      !       14:ON H   (DD) with NB beam component particle source
+      !       21:ON D   (DD) without particle source
+      !       22:ON D   (DD) with particle source
+      !       23:ON D   (DD) with NB beam component without particle source
+      !       24:ON D   (DD) with NB beam component particle source
+      !       31:ON He3 (DD) without particle source
+      !       32:ON He3 (DD) with particle source
+      !       33:ON He3 (DD) with NB beam component without particle source
+      !       34:ON He3 (DD) with NB beam component particle source
+      !       41:ON H   (DHe3) without particle source
+      !       42:ON H   (DHe3) with particle source
+      !       43:ON H   (DHe3) with NB beam component without particle source
+      !       44:ON H   (DHe3) with NB beam component particle source
+      !       51:ON He4 (DHe3) without particle source
+      !       52:ON He4 (DHe3) with particle source
+      !       53:ON He4 (DHe3) with NB beam component without particle source
+      !       54:ON He4 (DHe3) with NB beam component particle source
+
       nnfmax=1
       DO nnf=1,nnfm
          model_nnf(nnf)  = 0
       END DO
 
-      model_pnf=0
-      
       !     ==== RADIATION ====
 
       !     MDLPR  : MODEL OF RADIATION
@@ -576,13 +533,13 @@ CONTAINS
       !             0 : off
       !             0 to 1: ratio of v_parallel to v
       !  ns_nnb(nnbm)  : Particle species number
-      !  nrmax_nnb(nnbm): number of division of NB profile      
+      !  nraymax_nnb(nnbm): number of division of NB profile      
 
       NNBMAX=1
       DO NNB=1,NNBM
          model_nnb(nnb) = 0
          ns_nnb(nnb)    = 2
-         nrmax_nnb(nnb) = 10
+         nraymax_nnb(nnb) = 10
          PNBIN(NNB)  = 0.D0
          PNBR0(NNB)  = 0.D0
          PNBRW(NNB)  = 0.5D0
@@ -833,6 +790,7 @@ CONTAINS
       KFNLOG='tr.log'
       KFNTXT='tr.txt'
       KFNCVS='tr.cvs'
+
       RETURN
       END SUBROUTINE tr_init
 END MODULE trinit

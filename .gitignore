@@ -17,6 +17,9 @@
 *.out
 *.ps
 *csv
+*.bak
+*.bak2
+*namelist
 *png
 .DS_Store
 fort.*

@@ -10,18 +10,18 @@ MODULE trparm
        MDLIMP,PNC,PNFE,PNNU,PNNUS, &
        PROFN1,PROFN2,PROFT1,PROFT2,PROFU1,PROFU2, &
        PROFNU1,PROFNU2,PROFJ1,PROFJ2,ALP, &
-       model_prof,knam_prof,knam_profn_time,knam_proft_time, &
+       model_prof,knam_prof,knam_nfixed,knam_tfixed, &
        AD0,AV0,CNP,CNH,CDP,CDH,CNN,CDW, &
        MDLKAI,MDLETA,MDLAD,MDLAVK,MDLJBS,MDLKNC,MDLTPF, &
        MDLWLD,MDLDW,MDLCD05, &
        CHP,CK0,CK1,CWEB,CALF,CKALFA,CKBETA,CKGUMA, &
        DT,NRMAX,NTMAX,NTSTEP,NGTSTP,NGRSTP,NGPST,TSST, &
        EPSLTR,LMAXTR,TPRST,MDLST,IZERO, &
-       model_pnf,nnfmax,model_nnf, &
+       nnfmax,model_nnf, &
        NNBMAX,NECMAX,NLHMAX,NICMAX,NPELMAX,NPSCMAX, &
        model_nnb,MDLEC,MDLLH,MDLIC,MDLPEL,MDLPSC, &
        PNBIN,PNBR0,PNBRW,PNBCD,PNBVY,PNBVW,PNBENG,PNBRTG, &
-       ns_nnb,nrmax_nnb, &
+       ns_nnb,nraymax_nnb, &
        PECIN,PECR0,PECRW,PECCD,PECTOE,PECNPR, &
        PLHIN,PLHR0,PLHRW,PLHCD,PLHTOE,PLHNPR, &
        PICIN,PICR0,PICRW,PICCD,PICTOE,PICNPR, &
@@ -37,12 +37,9 @@ MODULE trparm
        MDLEQB,MDLEQN,MDLEQT,MDLEQU,MDLEQZ,MDLEQ0,MDLEQE,MDLEOI, &
        MDLER,MDLNCL,NSLMAX, &
        MDLELM,ELMWID,ELMDUR,ELMNRD,ELMTRD,ELMENH, &
-       MDLTC,MDLPCK,model_profn_time,model_proft_time,model_nevolve, &
-       model_chifixed,knam_chifixed,chifixed_factor, &
-       model_prlfixed,knam_prlfixed, &
-       C_SCALING,ALPHA_RELAX,H_FACTOR_USER,C_SCALING_MIN,C_SCALING_MAX, &
-       KNAMEQ,KNAMEQ2,KNAMTR,KFNLOG,KFNTXT,KFNCVS, &
-       knam_profg_total,knam_profm_total
+       MDLTC,MDLPCK,model_nfixed,model_tfixed, &
+       KNAMEQ,KNAMEQ2,KNAMTR,KFNLOG,KFNTXT,KFNCVS
+
   PRIVATE
   PUBLIC tr_parm
   PUBLIC tr_nlin
@@ -131,7 +128,7 @@ CONTAINS
              ' ',8X,'AD0,CHP,MDLAD,MDLAVK,CKGUMA,MDLKAI,MDLETA,MDLJBS'/ &
              ' ',8X,'DT,NRMAX,NTMAX,NTSTEP,NGTSTP,NGRSTP,NGPST,TSST'/ &
              ' ',8X,'EPSLTR,LMAXTR,PRST,MDLST,MDLNF,IZERO,PBSCD,MDLCD'/ &
-             ' ',8X,'PNBIN,PNBR0,PNBRW,PNBVY,PNBVW,PNBENG,PNBRTG'/ &
+             ' ',8X,'PNBTOT,PNBR0,PNBRW,PNBVY,PNBVW,PNBENG,PNBRTG'/ &
              ' ',8X,'PNBCD,MDLNB,NSNNB,NRNBMAX'/ &
              ' ',8X,'PECIN,PECR0,PECRW,PECTOE,PECNPR,PECCD,MDLEC'/ &
              ' ',8X,'PLHIN,PLHR0,PLHRW,PLHTOE,PLHNPR,PLHCD,MDLLH'/ &
@@ -140,8 +137,6 @@ CONTAINS
              ' ',8X,'PELTIM,PELPAT'/ &
              ' ',8X,'pellet_time_start,pellet_time_interval'/ &
              ' ',8X,'number_of_pellet_repeat'/ &
-             ' ',8X,'model_pnf,nnfmax'/ &
-             ' ',8X,'model_nf_dd1,model_nf_dd2,model_nf_the3'/ &
              ' ',8X,'MDLPR,SYNCABS,SYNCSELF,MODELG,NTEQIT'/&
              ' ',8X,'MDEDGE,MDLIMP,model_prof,knam_prof,'/ &
              ' ',8X,'MDLXP,MDLUF,MDLNCL,MDLWLD,MDLFLX,MDLER,MDCD05'/ &
@@ -150,9 +145,8 @@ CONTAINS
              ' ',8X,'TIME_INT,MODEP,MDNI,MDLJQ,MDLTC,MDLPCK'/ &
              ' ',8X,'KNAMEQ,KNAMEQ2,KNAMTR,KFNLOG,KFNTXT,KFNCVS,'/ &
              ' ',8X,'MDLPSC,NPSCMAX,PSCIN,PSCR0,PSCRW,NSPSC,PSCIN_MAX,'/ &
-             ' ',8X,'knam_profn_time,knam_proft_time'/ &
-             ' ',8X,'model_profn_time,model_proft_time'/ &
-             ' ',8X,'knam_profg_total,knam_profm_total')
+             ' ',8X,'knam_nfixed,knam_tfixed'/ &
+             ' ',8X,'model_nfixed,model_tfixed')
     END SUBROUTINE trplst
 
 !     ***** CHECK INPUT PARAMETERS *****

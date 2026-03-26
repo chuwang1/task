@@ -129,7 +129,7 @@
       ENDDO
       ENDDO
       CALL TRGR1D( 3.0,12.0,11.0,17.0,GRM,GYR,NRMP,NRMAX,NSMAX+4, &
-     &            '@POH,PNB,PNF,-PRSUM,PRF [MW/m$+3$=]  vs r@',2+INQ)
+     &            '@POH,PNB,PNF,PRSUM,PRF [MW/m$+3$=]  vs r@',2+INQ)
 
       DO NR=1,NRMAX
          GYR(NR,1) = GUCLIP(PRSUM(NR) * 1.D-6)
@@ -389,7 +389,7 @@
 
       DO NS=1,NSMAX
          DO NR=1,NRMAX
-            GYR(NR,NS) = GUCLIP(SPSC_NSNR(NS,NR))
+            GYR(NR,NS) = GUCLIP(SPSC(NR,NS))
          END DO
       END DO
       CALL TRGR1D(15.5,24.5, 2.0, 8.0,GRM,GYR,NRMP,NRMAX,NSMAX, &
@@ -1110,7 +1110,6 @@
       CHARACTER(LEN=40) :: KFID
       CHARACTER(LEN=5)  :: KRTG
 
-
       CALL PAGES
 
       DO NR=1,NRMAX
@@ -1158,6 +1157,7 @@
       CALL PAGES
 
       NA=1
+      IF(NLMAX(NA).GT.0) THEN
       DO NL=1,NLMAX(NA)
          GYBLA(NL)  =GBR (NL,NA)
          GYBLB(NL,1)=GBRH(NL,NA)
@@ -1166,20 +1166,28 @@
       ENDDO
       WRITE(KRTG,'(F5.3)') RTG(NA)
       KFID='@(L)R, (R)RHO, P1*10$+2$=, ANL vs r, RTG='//KRTG//' m@'
-      CALL TRGR1DD( 3.0,12.0,11.0,17.0,GBL,GYBLA,GYBLB,NLM,NLMAX(NA),1,3,KFID,3+INQ,2+INQ)
+      WRITE(6,'(I6,2ES12.4)') 1,GYBLA(1),GYBLB(1,1)
+      CALL TRGR1DD( 3.0,12.0,11.0,17.0, &
+           GBL,GYBLA,GYBLB,NLM,NLMAX(NA),1,3,KFID,3+INQ,2+INQ)
+   END IF
+   
+   NA=2
+   IF(NLMAX(NA).GT.0) THEN
+      DO NL=1,NLMAX(NA)
+         GYBLA(NL)  =GBR (NL,NA)
+         GYBLB(NL,1)=GBRH(NL,NA)
+         GYBLB(NL,2)=GBP1(NL,NA)*1.E2
+         GYBLB(NL,3)=GBAN(NL,NA)
+      ENDDO
+      WRITE(KRTG,'(F5.3)') RTG(NA)
+      KFID='@(L)R, (R)RHO, P1*10$+2$=, ANL vs r, RTG='//KRTG//' m@'
+      CALL TRGR1DD(15.5,24.5,11.0,17.0, &
+           GBL,GYBLA,GYBLB,NLM,NLMAX(NA),1,3,KFID,3+INQ,2+INQ)
+   END IF
 
-      NA=2
-      DO NL=1,NLMAX(NA)
-         GYBLA(NL)  =GBR (NL,NA)
-         GYBLB(NL,1)=GBRH(NL,NA)
-         GYBLB(NL,2)=GBP1(NL,NA)*1.E2
-         GYBLB(NL,3)=GBAN(NL,NA)
-      ENDDO
-      WRITE(KRTG,'(F5.3)') RTG(NA)
-      KFID='@(L)R, (R)RHO, P1*10$+2$=, ANL vs r, RTG='//KRTG//' m@'
-      CALL TRGR1DD(15.5,24.5,11.0,17.0,GBL,GYBLA,GYBLB,NLM,NLMAX(NA),1,3,KFID,3+INQ,2+INQ)
 
       NA=3
+   IF(NLMAX(NA).GT.0) THEN
       DO NL=1,NLMAX(NA)
          GYBLA(NL)  =GBR (NL,NA)
          GYBLB(NL,1)=GBRH(NL,NA)
@@ -1188,9 +1196,12 @@
       ENDDO
       WRITE(KRTG,'(F5.3)') RTG(NA)
       KFID='@(L)R, (R)RHO, P1*10$+2$=, ANL vs r, RTG='//KRTG//' m@'
-      CALL TRGR1DD( 3.0,12.0, 2.0, 8.0,GBL,GYBLA,GYBLB,NLM,NLMAX(NA),1,3,KFID,3+INQ,2+INQ)
+      CALL TRGR1DD( 3.0,12.0, 2.0, 8.0, &
+           GBL,GYBLA,GYBLB,NLM,NLMAX(NA),1,3,KFID,3+INQ,2+INQ)
+   END IF
 
-      NA=4
+   NA=4
+   IF(NLMAX(NA).GT.0) THEN
       DO NL=1,NLMAX(NA)
          GYBLA(NL)  =GBR (NL,NA)
          GYBLB(NL,1)=GBRH(NL,NA)
@@ -1199,7 +1210,9 @@
       ENDDO
       WRITE(KRTG,'(F5.3)') RTG(NA)
       KFID='@(L)R, (R)RHO, P1*10$+2$=, ANL vs r, RTG='//KRTG//' m@'
-      CALL TRGR1DD(15.5,24.5, 2.0, 8.0,GBL,GYBLA,GYBLB,NLM,NLMAX(NA),1,3,KFID,3+INQ,2+INQ)
+      CALL TRGR1DD(15.5,24.5, 2.0, 8.0, &
+           GBL,GYBLA,GYBLB,NLM,NLMAX(NA),1,3,KFID,3+INQ,2+INQ)
+   END IF
 
       CALL TRGRTM
       CALL PAGEE

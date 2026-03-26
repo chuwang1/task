@@ -9,6 +9,8 @@ END MODULE libnf_local
 MODULE libnf
   USE bpsd_kinds
   USE bpsd_constants
+  USE trcomm
+  IMPLICIT NONE
 
   ! Fusion model
   !   model_pnf=0 : no fusion reaction
@@ -27,20 +29,11 @@ MODULE libnf
   !                 T + T -> He4 + 2n                               TT
   !                 T + He3 -> He4 + p + n                          THe31 THe32
   !                 T + He3 -> He4 + D                              THe33 THe34
-  !                 T + He3 -> He5 + p                              THe35 THe36
+  !                 T + He3 -> He5 + p -> He4 + n + p       same as THe31 THe32
+  !                            He5 decays to He4 + n in 7.6x10^{-22}s
   
-  !   model_pnf=12: D + D -> T + p   | T + He4/2  nnfmax=4  nsmax=4 DD1 DD2
-  !                 D + D -> He3 + n ! He4 + n                      DD3
-  !                 D + T -> He4 + n                                DT
-  !   model_pnf=14: D + D -> T + p   ! T +He4/2   nnfmax=13 nsmax=4 DD1 DD2
-  !                 D + D -> He3 + n ! He4 + n                      DD3
-  !                 D + T -> He4 + n                                DT
-  !                 D + He3 -> He4 + p                              DHe31 DHe32
-  !                 T + T -> He4 + 2n                               TT
-  !                 T + He3 -> He4 + p + n                          THe31 THe32
-  !                 T + He3 -> He4 + D                              THe33 THe34
-  !                 T + He3 -> He5 + p ! He4 + p                    THe35 THe36
-  ! Fusion reaction id
+  !
+  ! Fusion reaction id:  <> indicates energetic species
   
   INTEGER,PARAMETER,PUBLIC:: id_nf_DT=    1 ! D + T   -> <He4> +  n
   INTEGER,PARAMETER,PUBLIC:: id_nf_DD1=   2 ! D + D   -> <T>   +  p
@@ -53,8 +46,15 @@ MODULE libnf
   INTEGER,PARAMETER,PUBLIC:: id_nf_THe32= 9 ! T + He3 ->  He4  + <p> + n
   INTEGER,PARAMETER,PUBLIC:: id_nf_THe33=10 ! T + He3 -> <He4> +  D
   INTEGER,PARAMETER,PUBLIC:: id_nf_THe34=11 ! T + He3 ->  He4  + <D>
-  INTEGER,PARAMETER,PUBLIC:: id_nf_THe35=12 ! T + He3 -> <He5> +  p
-  INTEGER,PARAMETER,PUBLIC:: id_nf_THe36=13 ! T + He3 ->  He5  + <p>
+
+  ! *** library subroutines ***
+
+  PUBLIC set_usigmav_nf  ! set_usigmav_nf
+  PUBLIC sigma_nf        ! sigma_nf(id_nf,energy)       Reaction rate fitting
+  PUBLIC sigmav_nf       ! sigmav_nf(id_nf,temperature) Maxwellian fitting
+  PUBLIC sigmav_nf_int   ! sigmav_nf(id_nf,temperature) Maxwellian integral 
+
+  ! *** private variables ***
 
   INTEGER,DIMENSION(:),ALLOCATABLE:: id_nf_nnf
   
@@ -108,20 +108,12 @@ MODULE libnf
   REAL(rkind),DIMENSION(10):: &
        dsvnf,tempa_log
 
-  ! *** library subroutines ***
-
-  PUBLIC set_usigmav_nf  ! set_usigmav_nf
-  PUBLIC sigma_nf        ! sigma_nf(id_nf,energy)       Reaction rate fitting
-  PUBLIC sigmav_nf       ! sigmav_nf(id_nf,temperature) Maxwellian fitting
-  PUBLIC sigmav_nf_int   ! sigmav_nf(id_nf,temperature) Maxwellian integral 
-  PUBLIC sigmav_nfb_int  ! sigmav_nfb(id_nf,temperature) Slowing Down integral 
-
 CONTAINS
   
   ! --- set spline coefficients for reaction rate sigmav
 
   SUBROUTINE set_usigmav_nf
-    USE trcomm
+    USE plcomm
     USE libspl1d
     IMPLICIT NONE
     REAL(rkind),DIMENSION(10):: dsvnf
@@ -129,16 +121,15 @@ CONTAINS
 
     SELECT CASE(model_pnf)
     CASE(0) ! no fusion reaction
-       IF (ANY(model_nnf .GT. 0)) RETURN
        nnfmax=0
        RETURN
     CASE(1) ! DT
        nnfmax=1
-    CASE(2,12) ! DT+DD 
+    CASE(2) ! DT+DD 
        nnfmax=4
-    CASE(3)    ! DT+DD+DHe3
+    CASE(3) ! DT+DD+DHe3
        nnfmax=6
-    CASE(4,14) ! DT+DD+DHe3+TT+THe3
+    CASE(4) ! DT+DD+DHe3+TT+THe3
        nnfmax=13
     CASE DEFAULT
        WRITE(6,*) 'XX Error libnf: undefined model_pnf: model_pnf=',model_pnf
@@ -151,7 +142,7 @@ CONTAINS
     SELECT CASE(model_pnf)
     CASE(1)
        id_nf_nnf(1)=id_nf_dt
-    CASE(2,12)
+    CASE(2)
        id_nf_nnf(1)=id_nf_dt
        id_nf_nnf(2)=id_nf_dd1
        id_nf_nnf(3)=id_nf_dd2
@@ -163,7 +154,7 @@ CONTAINS
        id_nf_nnf(4)=id_nf_dd3
        id_nf_nnf(5)=id_nf_dhe31
        id_nf_nnf(6)=id_nf_dhe32
-    CASE(4,14)
+    CASE(4)
        id_nf_nnf(1)=id_nf_dt
        id_nf_nnf(2)=id_nf_dd1
        id_nf_nnf(3)=id_nf_dd2
@@ -175,38 +166,26 @@ CONTAINS
        id_nf_nnf(9)=id_nf_the32
        id_nf_nnf(10)=id_nf_the33
        id_nf_nnf(11)=id_nf_the34
-       id_nf_nnf(12)=id_nf_the35
-       id_nf_nnf(13)=id_nf_the36
     CASE DEFAULT
        WRITE(6,*) 'XX Error libnf: undefined model_pnf: model_pnf=',model_pnf
        STOP
     END SELECT
 
     SELECT CASE(model_pnf)
-    CASE(1,12,13)
+    CASE(1)
        IF(NS_D*NS_T*NS_He4.EQ.0) THEN
           IF(NS_D.EQ.0) WRITE(6,*)   'XX Error: libnf: NS_D=0'
           IF(NS_T.EQ.0) WRITE(6,*)   'XX Error: libnf: NS_T=0'
           IF(NS_He4.EQ.0) WRITE(6,*) 'XX Error: libnf: NS_He4=0'
           STOP
        END IF
-    CASE(2,3)
+    CASE(2,3,4)
        IF(NS_D*NS_T*NS_He4*NS_H*NS_He3.EQ.0) THEN
           IF(NS_D.EQ.0)   WRITE(6,*) 'XX Error: libnf: NS_D=0'
           IF(NS_T.EQ.0)   WRITE(6,*) 'XX Error: libnf: NS_T=0'
           IF(NS_H.EQ.0)   WRITE(6,*) 'XX Error: libnf: NS_H=0'
           IF(NS_He4.EQ.0) WRITE(6,*) 'XX Error: libnf: NS_He4=0'
           IF(NS_He3.EQ.0) WRITE(6,*) 'XX Error: libnf: NS_He3=0'
-          STOP
-       END IF
-    CASE(4)
-       IF(NS_D*NS_T*NS_He4*NS_H*NS_He3*NS_He5.EQ.0) THEN
-          IF(NS_D.EQ.0)   WRITE(6,*) 'XX Error: libnf: NS_D=0'
-          IF(NS_T.EQ.0)   WRITE(6,*) 'XX Error: libnf: NS_T=0'
-          IF(NS_H.EQ.0)   WRITE(6,*) 'XX Error: libnf: NS_H=0'
-          IF(NS_He4.EQ.0) WRITE(6,*) 'XX Error: libnf: NS_He4=0'
-          IF(NS_He3.EQ.0) WRITE(6,*) 'XX Error: libnf: NS_He3=0'
-          IF(NS_He5.EQ.0) WRITE(6,*) 'XX Error: libnf: NS_He5=0'
           STOP
        END IF
     CASE DEFAULT
@@ -233,22 +212,14 @@ CONTAINS
     ns1_idnf(id_nf_dd2)=NS_D
     ns2_idnf(id_nf_dd2)=NS_D
     wgt_idnf(id_nf_dd2)=0.5D0
-    IF(model_pnf.EQ.12) THEN
-       nsp_idnf(id_nf_dd2)=NS_He4
-    ELSE
-       nsp_idnf(id_nf_dd2)=NS_H
-    END IF
+    nsp_idnf(id_nf_dd2)=NS_H
     eng_idnf(id_nf_dd2)=3.02D3*RKEV
     enn_idnf(id_nf_dd3)=0.D0
 
     ns1_idnf(id_nf_dd3)=NS_D
     ns2_idnf(id_nf_dd3)=NS_D
     wgt_idnf(id_nf_dd3)=0.5D0
-    IF(model_pnf.EQ.12) THEN
-       nsp_idnf(id_nf_dd3)=NS_He3
-    ELSE
-       nsp_idnf(id_nf_dd3)=NS_He4
-    END IF
+    nsp_idnf(id_nf_dd3)=NS_He4
     eng_idnf(id_nf_dd3)=0.82D3*RKEV
     enn_idnf(id_nf_dd3)=2.45D3*RKEV
 
@@ -276,19 +247,15 @@ CONTAINS
 
        ns1_idnf(id_nf_the31)=NS_T
        ns2_idnf(id_nf_the31)=NS_He3
-       wgt_idnf(id_nf_the31)=0.51D0
-       nsp_idnf(id_nf_the31)=NS_He4
-       eng_idnf(id_nf_the31)=1.34D3*RKEV ! 12.1MeV*0.25/2.25
+       wgt_idnf(id_nf_the31)=0.51D0+0.06D0
+       nsp_idnf(id_nf_the31)=NS_He4      ! He4 (+He5-> He4+n: ??? not complete)
+       eng_idnf(id_nf_the31)=1.34D3*RKEV ! 12.1MeV*0.25/2.25 (??? not uniq)
        enn_idnf(id_nf_the31)=5.38D3*RKEV ! 12.1Mev*1.00/2.25
 
        ns1_idnf(id_nf_the32)=NS_T
        ns2_idnf(id_nf_the32)=NS_He3
-       wgt_idnf(id_nf_the32)=0.51D0
-       IF(model_pnf.EQ.14) THEN
-          nsp_idnf(id_nf_the32)=NS_He4
-       ELSE
-          nsp_idnf(id_nf_the32)=NS_H
-       END IF
+       wgt_idnf(id_nf_the32)=0.51D0+0.06D0
+       nsp_idnf(id_nf_the32)=NS_H
        eng_idnf(id_nf_the32)=5.38D3*RKEV ! 12.1MeV*1.0/2.25
        enn_idnf(id_nf_the32)=0.D0
 
@@ -305,20 +272,6 @@ CONTAINS
        nsp_idnf(id_nf_the34)=NS_D
        eng_idnf(id_nf_the34)=9.58D3*RKEV
        enn_idnf(id_nf_the34)=0.D0
-
-       ns1_idnf(id_nf_the35)=NS_T
-       ns2_idnf(id_nf_the35)=NS_He3
-       wgt_idnf(id_nf_the35)=0.06D0
-       nsp_idnf(id_nf_the35)=NS_He5
-       eng_idnf(id_nf_the35)=1.89D3*RKEV
-       enn_idnf(id_nf_the35)=0.D0
-
-       ns1_idnf(id_nf_the36)=NS_T
-       ns2_idnf(id_nf_the36)=NS_He3
-       wgt_idnf(id_nf_the36)=0.06D0
-       nsp_idnf(id_nf_the36)=NS_H
-       eng_idnf(id_nf_the36)=9.46D3*RKEV
-       enn_idnf(id_nf_the36)=0.D0
     END IF
 
     DO ntemp=1,10
@@ -419,8 +372,7 @@ CONTAINS
        CALL SPL1DF(temperature_log,sigmav_nf,tempa_log,usvnf_dhe3,10,ierr)
     CASE(id_nf_tt)
        CALL SPL1DF(temperature_log,sigmav_nf,tempa_log,usvnf_tt,10,ierr)
-    CASE(id_nf_the31,id_nf_the32,id_nf_the33, &
-         id_nf_the34,id_nf_the35,id_nf_the36)
+    CASE(id_nf_the31,id_nf_the32,id_nf_the33,id_nf_the34)
        CALL SPL1DF(temperature_log,sigmav_nf,tempa_log,usvnf_the3,10,ierr)
     END SELECT
     IF(ierr.NE.0) THEN
@@ -459,7 +411,7 @@ CONTAINS
   ! --- sigmav for energy --- X=energy/temperature
 
   FUNCTION sigmav_nf_local(X)
-    USE trcomm,ONLY: RKEV
+    USE plcomm
     USE libnf_local
     IMPLICIT NONE
     REAL(rkind),INTENT(IN):: X
@@ -514,143 +466,6 @@ CONTAINS
 
     RETURN
   END FUNCTION sigmav_nf_int
-
-
-
-  
-  ! --- p-B reaction ---
-  !        Ref. A. Tantori and F Belloni, Nucl. Fusion 63 (2023) 086001 (9pp)
-  !     cross section --- sigma
-  !     astrophysics factor --- S
-
-  FUNCTION sigma_nf_PB_NS(E_Mev)
-
-    USE plcomm
-    IMPLICIT NONE
-    REAL(rkind),INTENT(IN):: E_MeV ! Energy in MeV
-    REAL(rkind):: sigma_nf_PB_NS
-
-    sigma_nf_PB_NS=S_nf_PB_NS(E_MeV*1.D3)/E_MeV*EXP(-SQRT(22.589D0/E_MeV))
-    RETURN
-  END FUNCTION sigma_nf_PB_NS
-    
-  FUNCTION sigma_nf_PB_SW(E_Mev)
-
-    USE plcomm
-    IMPLICIT NONE
-    REAL(rkind),INTENT(IN):: E_MeV ! Energy in MeV
-    REAL(rkind):: sigma_nf_PB_SW
-
-    sigma_nf_PB_SW=S_nf_PB_SW(E_MeV*1.D3)/E_MeV*EXP(-SQRT(22.589D0/E_MeV))
-    RETURN
-  END FUNCTION sigma_nf_PB_SW
-    
-  FUNCTION S_nf_PB_NS(E_keV)
-
-    USE plcomm
-    IMPLICIT NONE
-    REAL(rkind),INTENT(IN):: E_keV ! Energy in keV
-    REAL(rkind):: S_nf_PB_NS
-    ! constants all in MeV
-    REAL(rkind),PARAMETER:: C_0=197.D0
-    REAL(rkind),PARAMETER:: C_1=0.240D0
-    REAL(rkind),PARAMETER:: C_2=2.31D-4
-    REAL(rkind),PARAMETER:: A_L=1.82D4
-    REAL(rkind),PARAMETER:: E_L=148.0D-3
-    REAL(rkind),PARAMETER:: delE_L=2.35D-3
-    REAL(rkind),PARAMETER:: D_0=330.D0
-    REAL(rkind),PARAMETER:: D_1=66.1D0
-    REAL(rkind),PARAMETER:: D_2=-20.3D0
-    REAL(rkind),PARAMETER:: D_5=-1.58D0
-    REAL(rkind),PARAMETER:: A_0=2.57D6
-    REAL(rkind),PARAMETER:: A_1=5.67D5
-    REAL(rkind),PARAMETER:: A_2=1.34D5
-    REAL(rkind),PARAMETER:: A_3=5.68D5
-    REAL(rkind),PARAMETER:: E_0=581.3D-3
-    REAL(rkind),PARAMETER:: E_1=1083.D-3
-    REAL(rkind),PARAMETER:: E_2=2405.D-3
-    REAL(rkind),PARAMETER:: E_3=3344.D-3
-    REAL(rkind),PARAMETER:: delE_0=85.7D-3
-    REAL(rkind),PARAMETER:: delE_1=234.D-3
-    REAL(rkind),PARAMETER:: delE_2=138.D-3
-    REAL(rkind),PARAMETER:: delE_3=309.D-3
-    REAL(rkind),PARAMETER:: B=4.38D0
-  
-    REAL(rkind):: E_MeV, E_n, S
-
-    E_MeV=E_kev*0.001D0 ! Energy in  MeV
-
-    IF(E_MeV.LE.0.4D0) THEN ! S_1
-       S=C_0+C_1*E_keV+C_2*E_keV**2+A_L*1.D-6/((E_MeV-E_L)**2+delE_L**2)
-    ELSE IF(E_MeV.LE.0.642D0) THEN ! S_2
-       E_n=1.D1*(E_MeV-0.400D0)
-       S=D_0+D_1*E_n+D_2*E_n**2+D_5*E_n**5
-    ELSE IF(E_MeV.LE.3.5D0) THEN ! S_3
-       S=B+A_0*1.D-6/((E_MeV-E_0)**2+delE_0**2) &
-          +A_1*1.D-6/((E_MeV-E_1)**2+delE_1**2) &
-          +A_2*1.D-6/((E_MeV-E_2)**2+delE_2**2) &
-          +A_3*1.D-6/((E_MeV-E_3)**2+delE_3**2)
-    ELSE ! out of range
-       S=B+A_0*1.D-6/((3.5D0-E_0)**2+delE_0**2) &
-          +A_1*1.D-6/((3.5D0-E_1)**2+delE_1**2) &
-          +A_2*1.D-6/((3.5D0-E_2)**2+delE_2**2) &
-          +A_3*1.D-6/((3.5D0-E_3)**2+delE_3**2)
-    END IF
-    S_nf_PB_NS=S
-    RETURN
-  END FUNCTION S_nf_PB_NS
-
-  FUNCTION S_nf_PB_SW(E_keV)
-
-    USE plcomm
-    IMPLICIT NONE
-    REAL(rkind),INTENT(IN):: E_keV ! Energy in keV
-    REAL(rkind):: S_nf_PB_SW
-    ! constants all in MeV
-    REAL(rkind),PARAMETER:: C_0=197.D0
-    REAL(rkind),PARAMETER:: C_1=0.269D0
-    REAL(rkind),PARAMETER:: C_2=2.54D-4
-    REAL(rkind),PARAMETER:: D_0=346.D0
-    REAL(rkind),PARAMETER:: D_1=150.D0
-    REAL(rkind),PARAMETER:: D_2=-59.9D0
-    REAL(rkind),PARAMETER:: D_5=-0.460D0
-    REAL(rkind),PARAMETER:: A_0=1.98D6
-    REAL(rkind),PARAMETER:: A_1=3.89D6
-    REAL(rkind),PARAMETER:: A_2=1.36D6
-    REAL(rkind),PARAMETER:: A_3=3.71D6
-    REAL(rkind),PARAMETER:: E_0=640.9D-3
-    REAL(rkind),PARAMETER:: E_1=1211.D-3
-    REAL(rkind),PARAMETER:: E_2=2340.D-3
-    REAL(rkind),PARAMETER:: E_3=3294.D-3
-    REAL(rkind),PARAMETER:: delE_0=85.5D-3
-    REAL(rkind),PARAMETER:: delE_1=414.D-3
-    REAL(rkind),PARAMETER:: delE_2=221.D-3
-    REAL(rkind),PARAMETER:: delE_3=351.D-3
-    REAL(rkind),PARAMETER:: B=0.381D0
-  
-    REAL(rkind):: E_MeV, E_n, S
-
-    E_MeV=E_kev*0.001D0 ! Energy in  MeV
-
-    IF(E_MeV.LE.0.4D0) THEN ! S_1
-       S=C_0+C_1*E_keV+C_2*E_keV**2
-    ELSE IF(E_MeV.LE.0.668D0) THEN ! S_2
-       E_n=1.D1*(E_MeV-0.400D0)
-       S=D_0+D_1*E_n+D_2*E_n**2+D_5*E_n**5
-    ELSE IF(E_MeV.LE.9.76D0) THEN ! S_3
-       S=B+A_0*1.D-6/((E_MeV-E_0)**2+delE_0**2) &
-          +A_1*1.D-6/((E_MeV-E_1)**2+delE_1**2) &
-          +A_2*1.D-6/((E_MeV-E_2)**2+delE_2**2) &
-          +A_3*1.D-6/((E_MeV-E_3)**2+delE_3**2)
-    ELSE ! out of range
-       S=B+A_0*1.D-6/((9.76D0-E_0)**2+delE_0**2) &
-          +A_1*1.D-6/((9.76D0-E_1)**2+delE_1**2) &
-          +A_2*1.D-6/((9.76D0-E_2)**2+delE_2**2) &
-          +A_3*1.D-6/((9.76D0-E_3)**2+delE_3**2)
-    END IF
-    S_nf_PB_SW=S
-    RETURN
-  END FUNCTION S_nf_PB_SW
 
 END MODULE libnf
       
