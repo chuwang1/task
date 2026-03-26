@@ -147,6 +147,21 @@
          VEXBP(NR)= -ER(NR)/(RR*BP(NR))
       ENDDO
 
+!     === Pre-compute smoothed magnetic shear (5-point boxcar) ===
+!     Eliminates oscillation in S that causes chi peak at r/a=0.2-0.3
+!     Controlled by model_cdbm_smooth: 0=use raw S, 1=use smoothed S
+      IF(model_cdbm_smooth.GE.1) THEN
+         S_HM(1) = S(1)
+         S_HM(2) = (S(1)+S(2)+S(3))/3.D0
+         DO NR=3,NRMAX-2
+            S_HM(NR) = (S(NR-2)+S(NR-1)+S(NR)+S(NR+1)+S(NR+2))/5.D0
+         ENDDO
+         S_HM(NRMAX-1) = (S(NRMAX-2)+S(NRMAX-1)+S(NRMAX))/3.D0
+         S_HM(NRMAX) = S(NRMAX)
+      ELSE
+         S_HM(1:NRMAX) = S(1:NRMAX)
+      ENDIF
+
       DO NR=1,NRMAX
 !     characteristic time of temporal change of transport coefficients
          TAUK(NR)=QP(NR)*RR/SQRT(RT(NR,2)*RKEV/(PA(NS_D)*AMP))*DBLE(MDLTC)
@@ -620,11 +635,24 @@
                AKDWIL=CK1*FS*SQRT(ABS(ALPHA(NR)))**3*DELTA2*VA/(QL*RR)
             case(31)
                ALPHAL=ALPHA(NR)*CALF
-               FS=TRCOFS(S(NR),ALPHAL,RKCV(NR))
+               IF(model_cdbm_smooth.GE.1) THEN
+                  ! === Jump elimination: Set minimum shear ===
+                  SHEARL=MAX(S(NR), 0.5D0)
+                  FS=TRCOFS(SHEARL,ALPHAL,RKCV(NR))
+               ELSE
+                  FS=TRCOFS(S(NR),ALPHAL,RKCV(NR))
+               ENDIF
                IF(MDLCD05.NE.0) &
                     FS=FS*(2.D0*SQRT(RKPRHO(NR))/(1.D0+RKPRHO(NR)**2))**1.5D0
                AKDWEL=CK0*FS*SQRT(ABS(ALPHA(NR)))**3*DELTA2*VA/(QL*RR)
                AKDWIL=CK1*FS*SQRT(ABS(ALPHA(NR)))**3*DELTA2*VA/(QL*RR)
+               IF(model_cdbm_smooth.GE.1) THEN
+                  ! === Stabilization: Limit chi to prevent oscillation ===
+                  AKDWEL=MIN(AKDWEL, 50.D0)  ! Max chi_e = 50 m^2/s
+                  AKDWIL=MIN(AKDWIL, 50.D0)  ! Max chi_i = 50 m^2/s
+                  AKDWEL=MAX(AKDWEL, 0.1D0)  ! Min chi_e = 0.1 m^2/s
+                  AKDWIL=MAX(AKDWIL, 0.1D0)  ! Min chi_i = 0.1 m^2/s
+               ENDIF
             case(32)
                ALPHAL=ALPHA(NR)*CALF
                FS=TRCOFS(S(NR),ALPHAL,RKCV(NR))
@@ -863,11 +891,18 @@
 
             RS=RA*RG(NR)
             RKAPL=RKPRHO(NR)
-            SHEARL=S(NR)
+
+            IF(model_cdbm_smooth.GE.1) THEN
+               ! === Jump elimination: 5-point smoothing + shear min ===
+               SHEARL=MAX(S_HM(NR), 0.5D0)
+            ELSE
+               SHEARL=S(NR)
+            ENDIF
+
             PNEL=ANE*1.D20
 
             RHONI=(AMD*ANDX+AMT*ANT+AMA*ANA)*1.D20
-            
+
             DPDRl=DPP*1.D20*RKEV
             DVEXBDRL=DVE/RA
             SL=(S(NR)**2+0.1D0**2)

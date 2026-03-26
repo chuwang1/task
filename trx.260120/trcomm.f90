@@ -77,6 +77,12 @@ MODULE trcomm_parm
 
   REAL(rkind):: SIGMAV_SCALE_FACTOR   ! Manual scale for DT <sigma v> (default=1.0)
 
+  ! === CDBM improvement switch ===
+  !  model_cdbm_smooth:
+  !       0 : original CDBM (no smoothing, no shear min, no chi limits)
+  !       1 : improved CDBM (5-point S smoothing, shear_min=0.5, chi limits)
+  INTEGER:: model_cdbm_smooth
+
   ! === transport model parameters ===
 
   INTEGER:: MDLKAI

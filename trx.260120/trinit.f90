@@ -199,6 +199,11 @@ CONTAINS
       !       1.0 = no scaling (default)
       SIGMAV_SCALE_FACTOR = 1.0D0
 
+      !  model_cdbm_smooth: CDBM improvement switch
+      !       0 : original CDBM (no smoothing, no shear min, no chi limits)
+      !       1 : improved CDBM (5-point S smoothing, shear_min=0.5, chi limits)
+      model_cdbm_smooth = 1
+
       !  ==== IMPURITY ans neutral PARAMETERS ====
       
       !  MDLIMP : MODEL IMPURITY TREATMENT with PNC and PNFE

@@ -39,7 +39,7 @@ MODULE trparm
        MDLELM,ELMWID,ELMDUR,ELMNRD,ELMTRD,ELMENH, &
        MDLTC,MDLPCK,model_nfixed,model_tfixed,model_nevolve, &
        model_prlfixed,knam_prlfixed, &
-       SIGMAV_SCALE_FACTOR, &
+       SIGMAV_SCALE_FACTOR, model_cdbm_smooth, &
        KNAMEQ,KNAMEQ2,KNAMTR,KFNLOG,KFNTXT,KFNCVS
 
   PRIVATE
