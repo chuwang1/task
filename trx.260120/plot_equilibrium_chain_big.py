@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from plot_sumavir2_from_gfile import read_gfile_2d, read_input_profiles_mapping, bilinear_interp
 from plot_tts_f_relation import read_gfile_fpol
 
-BASE = "/Users/dengxiaoya/TASK/latest/task/trx"
+BASE = "/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120"
 OMFIT_OUT = "/Users/dengxiaoya/CFEDRSW/OMFIT_out"
 GFILE = os.path.join(OMFIT_OUT, "g260206.20000_teq_0114")
 INPUT_PROFILES = os.path.join(OMFIT_OUT, "input.profiles")

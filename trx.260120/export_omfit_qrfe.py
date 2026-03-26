@@ -9,7 +9,7 @@ import netCDF4 as nc4
 
 # 路径配置
 omfit_dir = '/Users/dengxiaoya/CFEDRSW/OMFIT_out'
-tr_dir = '/Users/dengxiaoya/TASK/latest/task/trx'
+tr_dir = '/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120'
 
 # 小半径 a (m)
 a_minor = 2.68

@@ -9,7 +9,7 @@ from matplotlib.path import Path
 
 from plot_sumavir2_from_gfile import read_gfile_2d, read_input_profiles_mapping
 
-BASE = '/Users/dengxiaoya/TASK/latest/task/trx'
+BASE = '/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120'
 GFILE = '/Users/dengxiaoya/CFEDRSW/OMFIT_out/g260206.20000_teq_0114'
 INPUT_PROFILES = '/Users/dengxiaoya/CFEDRSW/OMFIT_out/input.profiles'
 

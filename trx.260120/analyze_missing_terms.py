@@ -35,7 +35,7 @@ A_MINOR = 2.68   # Minor radius [m]
 KAPPA = 1.89     # Elongation
 KAPPA_S = np.sqrt(KAPPA)
 
-TR_DIR = '/Users/dengxiaoya/TASK/latest/task/trx'
+TR_DIR = '/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120'
 
 
 def find_csv_by_title(title_keyword, search_dir=TR_DIR):

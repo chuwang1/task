@@ -29,7 +29,7 @@ import math
 import os
 
 
-TRX_DIR = "/Users/dengxiaoya/TASK/latest/task/trx"
+TRX_DIR = "/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120"
 OMFIT_DIR = "/Users/dengxiaoya/CFEDRSW/OMFIT_out/outputs_new"
 
 

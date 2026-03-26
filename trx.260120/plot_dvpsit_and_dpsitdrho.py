@@ -8,7 +8,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
-TRX_DIR = "/Users/dengxiaoya/TASK/latest/task/trx"
+TRX_DIR = "/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120"
 
 
 def read_tr_dvrho(path):

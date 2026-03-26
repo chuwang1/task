@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 
-base_tr = '/Users/dengxiaoya/TASK/latest/task/trx'
+base_tr = '/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120'
 base_om = '/Users/dengxiaoya/CFEDRSW/OMFIT_out/outputs_new'
 
 chi = pd.read_csv(os.path.join(base_tr, 'chi.dat'), sep=r'\s+')

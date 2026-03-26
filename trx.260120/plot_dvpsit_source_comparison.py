@@ -16,7 +16,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-BASE = "/Users/dengxiaoya/TASK/latest/task/trx"
+BASE = "/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120"
 OMFIT = "/Users/dengxiaoya/CFEDRSW/OMFIT_out/outputs_new"
 GFILE = "/Users/dengxiaoya/CFEDRSW/OMFIT_out/g260206.20000_teq_0114"
 

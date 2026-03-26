@@ -272,22 +272,37 @@ def read_tr_profile_csv(filename, prefix, time_col=-1):
         Profile values at specified time
     """
     df = pd.read_csv(filename, skiprows=1)  # Skip title row
+    df.columns = df.columns.str.strip()
 
     # X column is r/a
     rho = df['X'].values
 
-    # Get columns with the prefix
+    # Get columns with the prefix: try numbered columns first (time-series),
+    # then fall back to exact column name (snapshot)
     cols = [c for c in df.columns if c.startswith(prefix + '_')]
-    if len(cols) == 0:
-        raise ValueError(f"No columns found with prefix {prefix}_")
-
-    # Sort columns by number
-    cols = sorted(cols, key=lambda x: int(x.split('_')[1]))
-
-    # Get profile at specified time
-    profile = df[cols[time_col]].values
+    if len(cols) > 0:
+        # Time-series format: prefix_1, prefix_2, ...
+        cols = sorted(cols, key=lambda x: int(x.split('_')[-1]))
+        profile = df[cols[time_col]].values
+    elif prefix in df.columns:
+        # Snapshot format: single column named exactly 'prefix'
+        profile = df[prefix].values
+    else:
+        raise ValueError(f"No columns found for '{prefix}' in {filename} "
+                         f"(columns: {list(df.columns)})")
 
     return rho, profile
+
+
+def find_csv_by_title(title_keyword, search_dir='.'):
+    """Find a TR CSV file by searching for a keyword in its title line."""
+    import glob, os
+    for f in sorted(glob.glob(os.path.join(search_dir, 'tr_data_*.csv'))):
+        with open(f, 'r') as fh:
+            title = fh.readline().strip()
+        if title_keyword in title:
+            return f
+    return None
 
 
 def main():
@@ -300,13 +315,37 @@ def main():
     try:
         from scipy.interpolate import interp1d
 
+        # Auto-find CSV files by title content
+        csv_qp    = find_csv_by_title('@QP  vs r@')
+        csv_s     = find_csv_by_title('@s  vs r@')
+        csv_alpha = find_csv_by_title('@alpha  vs r@')
+        csv_ne    = find_csv_by_title('@NE [')
+        csv_te    = find_csv_by_title('@TE [')
+        csv_td    = find_csv_by_title('@TD [')
+
+        missing = []
+        for name, path in [('QP', csv_qp), ('s', csv_s), ('alpha', csv_alpha),
+                           ('NE', csv_ne), ('TE', csv_te), ('TD', csv_td)]:
+            if path is None:
+                missing.append(name)
+        if missing:
+            raise FileNotFoundError(f"Could not find CSV files for: {missing}")
+
+        print(f"Auto-detected CSV files:")
+        print(f"  QP    -> {csv_qp}")
+        print(f"  s     -> {csv_s}")
+        print(f"  alpha -> {csv_alpha}")
+        print(f"  NE    -> {csv_ne}")
+        print(f"  TE    -> {csv_te}")
+        print(f"  TD    -> {csv_td}")
+
         # Read q, shear, alpha from TR output (use QP grid as reference)
-        rho, q = read_tr_profile_csv('tr_data_147.csv', 'QP')
-        rho_s, shear = read_tr_profile_csv('tr_data_129.csv', 's')
-        rho_a, alpha_tr = read_tr_profile_csv('tr_data_131.csv', 'alpha')
-        rho_ne, ne = read_tr_profile_csv('tr_data_117.csv', 'NE')
-        rho_Te, Te = read_tr_profile_csv('tr_data_119.csv', 'TE')
-        rho_Ti, Ti = read_tr_profile_csv('tr_data_120.csv', 'TD')
+        rho, q = read_tr_profile_csv(csv_qp, 'QP')
+        rho_s, shear = read_tr_profile_csv(csv_s, 's')
+        rho_a, alpha_tr = read_tr_profile_csv(csv_alpha, 'alpha')
+        rho_ne, ne = read_tr_profile_csv(csv_ne, 'NE')
+        rho_Te, Te = read_tr_profile_csv(csv_te, 'TE')
+        rho_Ti, Ti = read_tr_profile_csv(csv_td, 'TD')
 
         # Interpolate all to common grid (use rho from QP)
         f_s = interp1d(rho_s, shear, bounds_error=False, fill_value='extrapolate')
@@ -324,12 +363,17 @@ def main():
         # Update rs based on actual rho
         rs = rho * RA
 
-        # Try to read chi from TR
+        # Try to read chi from TR (AKD from the AKD,AKNCD,AKDWD plot)
         try:
-            rho_chi, chi_tr_raw = read_tr_profile_csv('tr_data_142.csv', 'AKD')
+            csv_akd = find_csv_by_title('AKD,AKNCD,AKDWD')
+            if csv_akd is None:
+                raise FileNotFoundError("AKD CSV not found")
+            print(f"  AKD   -> {csv_akd}")
+            rho_chi, chi_tr_raw = read_tr_profile_csv(csv_akd, 'AKD')
             f_chi = interp1d(rho_chi, chi_tr_raw, bounds_error=False, fill_value='extrapolate')
             chi_tr = f_chi(rho)
-        except:
+        except Exception as e:
+            print(f"  AKD   -> not found ({e})")
             chi_tr = None
 
         print("Read profiles from TR CSV files (last time step):")

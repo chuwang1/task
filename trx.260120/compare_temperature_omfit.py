@@ -398,7 +398,7 @@ def main():
     _, temp, _ = read_tr_csv('tr_data_019.csv')
     _, chi_e_data, _ = read_tr_csv('tr_data_023.csv')
     _, chi_i_data, _ = read_tr_csv('tr_data_024.csv')
-    _, pin_data, _ = read_tr_csv('tr_data_042.csv')
+    _, pin_data, _ = read_tr_csv('tr_data_037.csv')
     _, power_src, _ = read_tr_csv('tr_data_021.csv')
     _, rad_exch, _ = read_tr_csv('tr_data_022.csv')
     _, pnb_split, _ = read_tr_csv('tr_data_032.csv')

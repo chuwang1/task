@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 from matplotlib.path import Path
 
 
-TRX_DIR = "/Users/dengxiaoya/TASK/latest/task/trx"
+TRX_DIR = "/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120"
 BASE_DIR = "/Users/dengxiaoya/CFEDRSW/OMFIT_out"
 GFILE = os.path.join(BASE_DIR, "g260206.20000_teq_0114")
 INPUT_PROFILES = os.path.join(BASE_DIR, "input.profiles")

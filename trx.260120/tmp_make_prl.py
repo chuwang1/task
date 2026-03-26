@@ -4,7 +4,7 @@ import f90nml
 import os
 from scipy.interpolate import interp1d
 
-base = '/Users/dengxiaoya/TASK/latest/task/trx'
+base = '/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120'
 os.chdir(base)
 
 

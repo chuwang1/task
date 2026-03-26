@@ -25,6 +25,7 @@
       SNB_NSNR(1:NSMAX,1:NRMAX)=0.D0
       POH(1:NRMAX)=0.D0
       PIE(1:NRMAX)=0.D0
+      QEI(1:NRMAX)=0.D0
       PCX(1:NRMAX)=0.D0
       PRB(1:NRMAX)=0.D0
       PRC(1:NRMAX)=0.D0

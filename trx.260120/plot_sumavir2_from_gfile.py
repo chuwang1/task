@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 from matplotlib.path import Path
 
 
-BASE = "/Users/dengxiaoya/TASK/latest/task/trx"
+BASE = "/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120"
 OMFIT_BASE = "/Users/dengxiaoya/CFEDRSW/OMFIT_out"
 GFILE = os.path.join(OMFIT_BASE, "g260206.20000_teq_0114")
 INPUT_PROFILES = os.path.join(OMFIT_BASE, "input.profiles")

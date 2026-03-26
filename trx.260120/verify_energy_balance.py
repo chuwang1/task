@@ -291,11 +291,11 @@ def main():
     poh = d_src["POH"]
     pnb = d_src["PNB"]
     pnf = d_src["PNF"]
-    neg_prs = d_src["-PRSUM"]
+    neg_prs = d_src["PRSUM"]
     Q_poh = sum(poh[i] * dvrho[i] * dr for i in range(nrmax))
     Q_pnb = sum(pnb[i] * dvrho[i] * dr for i in range(nrmax))
     Q_pnf = sum(pnf[i] * dvrho[i] * dr for i in range(nrmax))
-    Q_rad = sum((-neg_prs[i]) * dvrho[i] * dr for i in range(nrmax))
+    Q_rad = sum((neg_prs[i]) * dvrho[i] * dr for i in range(nrmax))
 
     # --- Optional OMFIT integrated source flux ---
     omfit_rho = None

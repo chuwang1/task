@@ -7,7 +7,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-BASE = "/Users/dengxiaoya/TASK/latest/task/trx"
+BASE = "/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120"
 GFILE = "/Users/dengxiaoya/CFEDRSW/OMFIT_out/g260206.20000_teq_0114"
 COMPARE_F_CSV = "/Users/dengxiaoya/TASK/latest/task/eq/in/compare_f_from_gfile_geom_q.csv"
 

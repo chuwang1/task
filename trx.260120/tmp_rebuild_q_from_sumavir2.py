@@ -8,7 +8,7 @@ from matplotlib.path import Path
 
 from plot_sumavir2_from_gfile import read_gfile_2d, read_input_profiles_mapping, bilinear_interp
 
-base = '/Users/dengxiaoya/TASK/latest/task/trx'
+base = '/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120'
 OMFIT_BASE = '/Users/dengxiaoya/CFEDRSW/OMFIT_out'
 GFILE = os.path.join(OMFIT_BASE, 'g260206.20000_teq_0114')
 INPUT_PROFILES = os.path.join(OMFIT_BASE, 'input.profiles')

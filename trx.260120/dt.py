@@ -45,7 +45,7 @@ ord_om = np.argsort(Ti_om_z)
 # ---------------------------
 # TR inferred <sigma v> from outputs
 # ---------------------------
-tr = '/Users/dengxiaoya/TASK/latest/task/trx'
+tr = '/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120'
 import glob, os
 
 def find_csv(pattern):
@@ -130,7 +130,7 @@ ax.set_title('Zoom: DT Reactivity (20-50 keV) with OMFIT and TR inferred')
 ax.grid(True, which='both', ls='--', alpha=0.35)
 ax.legend(fontsize=9, loc='lower right')
 
-out = '/Users/dengxiaoya/TASK/latest/task/trx/dt_reactivity_zoom_20_50keV_with_omfit_tr_inferred.png'
+out = '/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120/dt_reactivity_zoom_20_50keV_with_omfit_tr_inferred.png'
 fig.tight_layout()
 fig.savefig(out, dpi=170)
 print('Saved:', out)

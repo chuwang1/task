@@ -57,7 +57,7 @@ def get_geometry_chi_factor(species='electron', kappa=KAPPA):
     else:
         return 1.0  # Default: no correction
 
-TR_DIR = '/Users/dengxiaoya/TASK/latest/task/trx'
+TR_DIR = '/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120'
 
 
 def find_csv_by_title(title_keyword, search_dir=TR_DIR):

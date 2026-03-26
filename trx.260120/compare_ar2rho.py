@@ -25,7 +25,7 @@ from scipy.interpolate import interp1d
 # 1. Read TASK/TR AR2RHO data
 # ============================================================
 tr_lines = []
-with open('/Users/dengxiaoya/TASK/latest/task/trx/tr_data_129.csv', 'r') as f:
+with open('/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120/tr_data_129.csv', 'r') as f:
     for line in f:
         line = line.strip()
         if line.startswith('Title') or line.startswith('X,') or line == '':
@@ -183,7 +183,7 @@ ax.legend(fontsize=9)
 ax.grid(True, alpha=0.3)
 
 plt.tight_layout()
-plt.savefig('/Users/dengxiaoya/TASK/latest/task/trx/compare_ar2rho.png', dpi=150)
+plt.savefig('/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120/compare_ar2rho.png', dpi=150)
 plt.close()
 print("\nPlot saved to: compare_ar2rho.png")
 

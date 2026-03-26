@@ -6,7 +6,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
-BASE = "/Users/dengxiaoya/TASK/latest/task/trx"
+BASE = "/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120"
 
 
 def main():

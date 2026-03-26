@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 # 路径配置
 # ============================================================================
 omfit_dir = '/Users/dengxiaoya/CFEDRSW/OMFIT_out'
-tr_dir = '/Users/dengxiaoya/TASK/latest/task/trx'
+tr_dir = '/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120'
 
 # 小半径 a (m)
 a_minor = 2.68
@@ -53,9 +53,9 @@ def read_tr_csv(filename):
     return df
 
 # 通过标题内容自动查找CSV文件（不依赖固定编号）
-csv_021 = find_csv_by_title('POH,PNB,PNF,-PRSUM,PRF')      # power vs r
+csv_021 = find_csv_by_title('POH,PNB,PNF')                  # power vs r (matches both PRSUM and -PRSUM variants)
 csv_022 = find_csv_by_title('PRSUM,PRB,PRC,PRL,PCX,PIE')   # radiation/exchange vs r
-csv_027 = find_csv_by_title('PNBIN,PNBCL(1:NS)')           # NBI collisional split vs r
+csv_027 = find_csv_by_title('PNBIN,PNBCL')                 # NBI collisional split vs r
 csv_028 = find_csv_by_title('PNFIN,PNFCL')                 # fusion split vs r
 csv_037 = find_csv_by_title('@PIN [MW/m$+3$=]')            # PIN by species vs r
 
@@ -67,7 +67,7 @@ print(f"  Fusion detail  -> {csv_028}")
 print(f"  PIN species    -> {csv_037}")
 
 missing = []
-if csv_021 is None: missing.append('POH/PNB/PNF/PRF')
+if csv_021 is None: missing.append('POH/PNB/PNF/PRSUM/PRF')
 if csv_022 is None: missing.append('PRSUM/PRB/PCX/PIE')
 if csv_027 is None: missing.append('PNBIN/PNBCL')
 if csv_028 is None: missing.append('PNFIN/PNFCL')

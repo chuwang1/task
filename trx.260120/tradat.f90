@@ -254,9 +254,10 @@
       USE trfixed, ONLY: tr_prep_prlfixed
       USE libitp
       IMPLICIT NONE
-      INTEGER:: IERR, NR
+      INTEGER:: IERR, NR, NS
       REAL(rkind):: ANDX, ANE, ANHE, ANT, EION, PLC, PLD, PLFE, PLHE, PLTT, &
-           PRLL, SCH, SION, TD, TE, TN, TNU, TRRPC, TRRPFE, TSL
+           PRLL, SCH, SION, TD, TE, TN, TNU, TRRPC, TRRPFE, TSL, &
+           ANI, TI, AMZE, AMZI, RTME, RTMI, C1, COEF_EI, COULOG
       INTEGER,SAVE:: irad_init=0
 
 !     Read external PRL profile once
@@ -318,6 +319,32 @@
          SIE(NR) = ANE*ANNU(NR)*SION*1.D20
          TSIE(NR)= ANE         *SION*1.D20
       ENDDO
+
+!     ****** ELECTRON-ION COLLISIONAL ENERGY EXCHANGE (DIAGNOSTIC) ******
+
+      COEF_EI = AEE**4*1.D20/(3.D0*SQRT(2.D0*PI)*PI*EPS0**2)
+      DO NR=1,NRMAX
+         QEI(NR)=0.D0
+         ANE = RN(NR,NS_e)
+         TE  = MAX(ABS(RT(NR,NS_e)),1.D-6)
+         IF(ANE.LE.1.D-12) CYCLE
+
+         AMZE = PA(NS_e)*AMP/(PZ(NS_e)**2)
+         RTME = TE*RKEV/(PA(NS_e)*AMP)
+
+         DO NS=2,NSMAX
+            IF(PZ(NS).LE.0.D0) CYCLE
+            ANI = RN(NR,NS)
+            IF(ANI.LE.1.D-12) CYCLE
+
+            TI   = MAX(ABS(RT(NR,NS)),1.D-6)
+            AMZI = PA(NS)*AMP/(PZ(NS)**2)
+            RTMI = TI*RKEV/(PA(NS)*AMP)
+
+            C1 = COEF_EI/((RTME+RTMI)**1.5D0*AMZE*AMZI) * COULOG(NS_e,NS,ANE,TE)
+            QEI(NR) = QEI(NR) + C1*ANE*ANI*(TI-TE)*RKEV*1.D20
+         END DO
+      END DO
 
 !     ****** CHARGE EXCHANGE LOSS ******
 
