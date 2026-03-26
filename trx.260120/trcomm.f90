@@ -73,6 +73,10 @@ MODULE trcomm_parm
   INTEGER:: MDLIMP,MDLNI
   REAL(rkind):: PNC,PNFE,PNNU,PNNUS
   
+  ! === fusion reaction parameters ===
+
+  REAL(rkind):: SIGMAV_SCALE_FACTOR   ! Manual scale for DT <sigma v> (default=1.0)
+
   ! === transport model parameters ===
 
   INTEGER:: MDLKAI

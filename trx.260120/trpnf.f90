@@ -298,13 +298,14 @@ CONTAINS
       FUNCTION SIGMAM(TD,TT)
          USE bpsd_kinds
          USE libsigma
+         USE trcomm, ONLY: SIGMAV_SCALE_FACTOR
          IMPLICIT NONE
          REAL(rkind),INTENT(IN)::  TD,TT
          REAL(rkind):: TI,SIGMAM
 
          TI = (3.D0*ABS(TD)+2.D0*ABS(TT))/5.D0
 
-         SIGMAM=sigmavm_dt(TI)*(1E-6)
+         SIGMAM=sigmavm_dt(TI)*(1E-6)*SIGMAV_SCALE_FACTOR
          
          RETURN
          END FUNCTION SIGMAM

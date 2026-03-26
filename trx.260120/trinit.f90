@@ -195,6 +195,9 @@ CONTAINS
       model_prlfixed=0
       knam_prlfixed='omfit_prl_for_tr.csv'
 
+      !  SIGMAV_SCALE_FACTOR: manual scaling for DT <sigma v>
+      !       1.0 = no scaling (default)
+      SIGMAV_SCALE_FACTOR = 1.0D0
 
       !  ==== IMPURITY ans neutral PARAMETERS ====
       
