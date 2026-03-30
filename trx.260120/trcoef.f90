@@ -21,6 +21,7 @@
       USE TRCOMM
       USE trcdbm
       USE trmodels,ONLY: mbgb_driver,mmm95_driver,mmm71_driver
+      USE trfixed, ONLY: tr_prep_chifixed
       USE libitp
       USE libgrf
       USE libplog, ONLY: plog
@@ -42,7 +43,8 @@
       REAL(rkind):: &
            RS,RKAPL,SHEARL,PNEL,RHONI,DPDRL,DVEXBDRL,CEXB,CKAP,chi_cdbm, &
            PAL,PZL,ADFFI,ACHIE,ACHII,ACHIEB,ACHIIB,ACHIEGB,ACHIIGB, &
-           VTIL, GAMMA0, EXBfactor, SHRfactor
+           VTIL, GAMMA0, EXBfactor, SHRfactor, FRHO_E, FRHO_I, &
+           CHI_MIX_W, CHI_MIX_W_CORE, CHI_MIX_W_EDGE
       REAL(rkind):: CHIIW,DIFHW,CHIEW,DIMPW, &
                 CHIIRB,DIFHRB,CHIERB,DIMPRB, &
                 CHIIKB,DIFHKB,CHIEKB,DIMPKB, &
@@ -51,6 +53,12 @@
                 CHIIB,DIFHB,CHIEB,CHIEG 
       INTEGER:: MODEL,ierr
       REAL(rkind),DIMENSION(NRMAX):: S_HM
+      INTEGER,SAVE:: ichimix_init=0
+
+      IF(model_chimix.GE.1 .AND. ichimix_init.EQ.0) THEN
+         CALL tr_prep_chifixed
+         ichimix_init=1
+      ENDIF
 
       OMEGAD = PZ(NS_D)*AEE*BB/AMD
 
@@ -918,6 +926,27 @@
             AKDWEL=(CK0/12.D0)*chi_cdbm
             AKDWIL=(CK1/12.D0)*chi_cdbm
 
+            IF(model_chimix.GE.1) THEN
+!              Edge: w_edge -> 1 for rho >> rho_switch
+               CHI_MIX_W_EDGE = 0.5D0*(1.D0 + TANH((RG(NR)-rho_chimix_switch) / &
+                    MAX(rho_chimix_width,1.D-6)))
+!              Core: w_core -> 1 for rho << rho_core (only when model_chimix>=2)
+               IF(model_chimix.GE.2 .AND. rho_chimix_core.GT.0.D0) THEN
+                  CHI_MIX_W_CORE = 0.5D0*(1.D0 - TANH((RG(NR)-rho_chimix_core) / &
+                       MAX(rho_chimix_core_width,1.D-6)))
+               ELSE
+                  CHI_MIX_W_CORE = 0.D0
+               ENDIF
+!              Combined: use external chi where either core or edge weight is large
+               CHI_MIX_W = MAX(CHI_MIX_W_CORE, CHI_MIX_W_EDGE)
+               CHI_MIX_W = MIN(CHI_MIX_W, 1.D0)
+               AKDWEL = (1.D0-CHI_MIX_W)*AKDWEL + CHI_MIX_W*AKEXT_E(NR)
+               AKDWIL = (1.D0-CHI_MIX_W)*AKDWIL + CHI_MIX_W*AKEXT_I(NR)
+               CHIMIXW(NR) = CHI_MIX_W
+            ELSE
+               CHIMIXW(NR) = 0.D0
+            ENDIF
+
             AKDW(NR,1)=AKDWEL
             AKDW(NR,2)=AKDWIL
             AKDW(NR,3)=AKDWIL
@@ -1047,6 +1076,47 @@
             VGR4(NR,3)=0.D0
 
 
+          CASE(180:189)
+
+            SELECT CASE(MDLKAI)
+            CASE(180)
+               TAUE_TARGET = TAUE89
+            CASE(181)
+               TAUE_TARGET = TAUE98
+            CASE DEFAULT
+               TAUE_TARGET = TAUE98
+            END SELECT
+
+            IF(TAUE_TARGET < 1.D-10) TAUE_TARGET = 1.D-2
+
+            FRHO_E = AKEXT_E(NR)
+            FRHO_I = AKEXT_I(NR)
+            IF(FRHO_E < 1.D-10) FRHO_E = 0.1D0
+            IF(FRHO_I < 1.D-10) FRHO_I = 0.1D0
+
+            AKDWEL = C_SCALING * FRHO_E * CK0
+            AKDWIL = C_SCALING * FRHO_I * CK1
+            AKDWEL = MIN(MAX(AKDWEL, 0.01D0), 100.D0)
+            AKDWIL = MIN(MAX(AKDWIL, 0.01D0), 100.D0)
+
+            AKDW(NR,1)=AKDWEL
+            AKDW(NR,2)=AKDWIL
+            AKDW(NR,3)=AKDWIL
+            AKDW(NR,4)=AKDWIL
+
+            VGR1(NR,1)=FRHO_E
+            VGR1(NR,2)=FRHO_I
+            VGR1(NR,3)=TAUE_TARGET
+            VGR2(NR,1)=AKDWEL
+            VGR2(NR,2)=AKDWIL
+            VGR2(NR,3)=C_SCALING
+            VGR3(NR,1)=TAUE2
+            VGR3(NR,2)=TAUE2/MAX(TAUE_TARGET,1.D-10)
+            VGR3(NR,3)=0.D0
+            VGR4(NR,1)=CK0
+            VGR4(NR,2)=CK1
+            VGR4(NR,3)=0.D0
+
           CASE(230:239)
 
             RS=RA*RG(NR)
@@ -1102,6 +1172,8 @@
 
          END SELECT
       ENDDO
+
+!     (Core flattening removed: now handled by dual-tanh mixing inside NR loop)
 
 !      DO NR=1,NRMAX
 !         WRITE(6,'(I5,1P6E12.4)') NR,VGR1(NR,1),VGR1(NR,2),VGR1(NR,3), &

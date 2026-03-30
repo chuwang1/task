@@ -264,7 +264,7 @@
 
       SUBROUTINE TRGRE6(INQ)
 
-      USE TRCOMM,ONLY : NRMAX, NRMP, GRM, GYR, PPPRHO, PIQRHO, TTRHO, PIRHO
+      USE TRCOMM,ONLY : NRMAX, NRMP, GRM, GRG, GYR, PPPRHO, PIQRHO, TTRHO, PIRHO, RG, RM, RHOG, RHOM, CHIMIXW, AKEXT_E, AKEXT_I
       IMPLICIT NONE
       INTEGER,INTENT(IN) :: INQ
       INTEGER:: NR
@@ -296,6 +296,47 @@
 
       CALL TRGR1D(15.5,24.5, 2.0, 8.0,GRM,GYR,NRMP,NRMAX,1, &
      &            '@PIRHO vs RHO@',2+INQ)
+
+      CALL TRGRTM
+      CALL PAGEE
+
+      CALL PAGES
+
+      DO NR=1,NRMAX
+         GYR(NR,1) = GUCLIP(RM(NR))
+      ENDDO
+      DO NR=1,NRMAX
+         GYR(NR+1,2) = GUCLIP(RG(NR))
+      ENDDO
+      GYR(1,2) = 0.0
+      CALL TRGR1D( 3.0,12.0,11.0,17.0,GRG,GYR,NRMP,NRMAX+1,2, &
+     &            '@RM,RG  vs RHO@',2+INQ)
+
+      DO NR=1,NRMAX
+         GYR(NR,1) = GUCLIP(RHOM(NR))
+      ENDDO
+      DO NR=1,NRMAX
+         GYR(NR+1,2) = GUCLIP(RHOG(NR))
+      ENDDO
+      GYR(1,2) = 0.0
+      CALL TRGR1D(15.5,24.5,11.0,17.0,GRG,GYR,NRMP,NRMAX+1,2, &
+     &            '@RHOM,RHOG  vs RHO@',2+INQ)
+
+      CALL TRGRTM
+      CALL PAGEE
+
+      CALL PAGES
+
+      DO NR=1,NRMAX
+         GYR(NR+1,1) = GUCLIP(CHIMIXW(NR))
+         GYR(NR+1,2) = GUCLIP(AKEXT_E(NR))
+         GYR(NR+1,3) = GUCLIP(AKEXT_I(NR))
+      ENDDO
+      GYR(1,1) = 0.0
+      GYR(1,2) = GUCLIP(AKEXT_E(1))
+      GYR(1,3) = GUCLIP(AKEXT_I(1))
+      CALL TRGR1D( 3.0,24.5,11.0,17.0,GRG,GYR,NRMP,NRMAX+1,3, &
+     &            '@CHIMIXW,AKEXT_E,AKEXT_I  vs RHO@',2+INQ)
 
       CALL TRGRTM
       CALL PAGEE

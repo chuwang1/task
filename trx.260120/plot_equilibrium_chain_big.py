@@ -14,6 +14,7 @@ BASE = "/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120"
 OMFIT_OUT = "/Users/dengxiaoya/CFEDRSW/OMFIT_out"
 GFILE = os.path.join(OMFIT_OUT, "g260206.20000_teq_0114")
 INPUT_PROFILES = os.path.join(OMFIT_OUT, "input.profiles")
+EQCALQ = "/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120/eqcalq_dvdpsit_raw.csv"
 
 
 def read_tr_eqcalq(path):
@@ -155,8 +156,8 @@ def compute_sumavir2_and_dvdpsip_from_gfile():
 
 
 def main():
-    tr = read_tr_eqcalq(os.path.join(BASE, 'eqcalq_dvdpsit_raw.csv'))
-    rho_dvrho_tr, dvrho_tr = read_tr_dvrho(os.path.join(BASE, 'tr_data_133.csv'))
+    tr = read_tr_eqcalq(EQCALQ)
+    rho_dvrho_tr, dvrho_tr = read_tr_dvrho(os.path.join(BASE, 'tr_data_131.csv'))
 
     # gfile/OMFIT references
     rho_prof=[]; polflux_prof=[]
@@ -199,6 +200,7 @@ def main():
     x_g = np.interp(rho_map, rho_prof, x_om)
 
     x_tr = tr['psip'] / tr['psip'][-1]
+    rho_tr = tr['rho']
     refs = {
         'psip': np.interp(x_tr, x_om, psip_om),
         'psit': np.interp(x_tr, x_om, psit_om),
@@ -223,30 +225,33 @@ def main():
         ('psip', 'PSIP'), ('psit', 'PSIT'), ('qps', 'QPS / q'), ('tts', 'TTS'),
         ('sumavir2', 'SUMAVIR2'), ('dvdpsip', 'dV/dpsi_p'), ('dvdpsit', 'dV/dpsi_t'), ('dvrho', 'DVRHO')
     ]
+
+    mask_zoom = (rho_tr > 0.0) & (rho_tr < 0.3)
     fig, axes = plt.subplots(len(items), 2, figsize=(13, 22), sharex='col')
     for i,(key,title) in enumerate(items):
         if key == 'dvrho':
             x_dv = np.interp(rho_dvrho_tr, tr['rho'], x_tr)
-            axes[i,0].plot(x_dv, dvrho_tr, 'o-', ms=2.8, lw=1.6, label='TR DVRHO from tr_data_133')
-            axes[i,0].plot(x_tr, refs['dvrho_eqchain_tr'], '--', lw=1.8, color='tab:green', label='TR eq-chain DVRHO')
-            axes[i,0].plot(x_tr, refs['dvrho_gfile'], ':', lw=2.0, color='tab:red', label='gfile DVRHO')
-            ratio = np.interp(x_tr, x_dv, dvrho_tr) / np.where(np.abs(refs['dvrho_gfile']) > 1e-30, refs['dvrho_gfile'], np.nan)
+            mask_dv = (rho_dvrho_tr > 0.0) & (rho_dvrho_tr < 0.3)
+            axes[i,0].plot(rho_dvrho_tr[mask_dv], dvrho_tr[mask_dv], 'o-', ms=2.8, lw=1.6, label='TR DVRHO from tr_data_133')
+            axes[i,0].plot(rho_tr[mask_zoom], refs['dvrho_eqchain_tr'][mask_zoom], '--', lw=1.8, color='tab:green', label='TR eq-chain DVRHO')
+            axes[i,0].plot(rho_tr[mask_zoom], refs['dvrho_gfile'][mask_zoom], ':', lw=2.0, color='tab:red', label='gfile DVRHO')
+            ratio = np.interp(rho_tr, rho_dvrho_tr, dvrho_tr) / np.where(np.abs(refs['dvrho_gfile']) > 1e-30, refs['dvrho_gfile'], np.nan)
         else:
-            axes[i,0].plot(x_tr, tr[key], 'o-', ms=2.8, lw=1.6, label=f'TR {title}')
-            axes[i,0].plot(x_tr, refs[key], '--', lw=2.0, color='tab:red', label=f'gfile/OMFIT {title}')
+            axes[i,0].plot(rho_tr[mask_zoom], tr[key][mask_zoom], 'o-', ms=2.8, lw=1.6, label=f'TR {title}')
+            axes[i,0].plot(rho_tr[mask_zoom], refs[key][mask_zoom], '--', lw=2.0, color='tab:red', label=f'gfile/OMFIT {title}')
             ratio = tr[key] / np.where(np.abs(refs[key]) > 1e-30, refs[key], np.nan)
         axes[i,0].set_ylabel(title)
-        axes[i,0].set_title(f'{title} on normalized psi_p grid')
+        axes[i,0].set_title(f'{title} for 0 < rho < 0.3')
         axes[i,0].grid(True, alpha=0.3)
         axes[i,0].legend(fontsize=8)
-        axes[i,1].plot(x_tr, ratio, 'd-', color='tab:blue', lw=1.4, ms=2.6)
+        axes[i,1].plot(rho_tr[mask_zoom], ratio[mask_zoom], 'd-', color='tab:blue', lw=1.4, ms=2.6)
         axes[i,1].axhline(1.0, color='k', lw=1, alpha=0.5)
         axes[i,1].set_ylabel('TR / ref')
-        axes[i,1].set_title(f'{title} ratio')
+        axes[i,1].set_title(f'{title} ratio for 0 < rho < 0.3')
         axes[i,1].grid(True, alpha=0.3)
 
-    axes[-1,0].set_xlabel('psi_p / psi_pa')
-    axes[-1,1].set_xlabel('psi_p / psi_pa')
+    axes[-1,0].set_xlabel('rho')
+    axes[-1,1].set_xlabel('rho')
     out = os.path.join(BASE, 'equilibrium_chain_big_comparison.png')
     plt.tight_layout()
     plt.savefig(out, dpi=170)

@@ -4,6 +4,7 @@ MODULE trloop
 
   PRIVATE
   PUBLIC tr_loop
+  PUBLIC tr_scaling_adjust
 
 CONTAINS
 
@@ -62,6 +63,7 @@ CONTAINS
       call tr_bpsd_put(IERR)
       
       if(ierr.ne.0) GOTO 9000
+      CALL tr_scaling_adjust(NT)
       NT=NT+1
 
 !     *** SET GEOMETRY VIA TASK/EQ ***
@@ -88,4 +90,44 @@ CONTAINS
       RIPS=RIPE
       RETURN
     END SUBROUTINE tr_loop
+
+  SUBROUTINE tr_scaling_adjust(NTSTEP_IN)
+
+      USE TRCOMM
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: NTSTEP_IN
+      REAL(rkind) :: ERR_TAUE, ERR_TAUE_RAW, C_SCALING_NEW
+
+      IF(MDLKAI < 180 .OR. MDLKAI > 189) RETURN
+
+      SELECT CASE(MDLKAI)
+      CASE(180)
+         TAUE_TARGET = TAUE89
+      CASE(181)
+         TAUE_TARGET = TAUE98
+      CASE DEFAULT
+         TAUE_TARGET = TAUE98
+      END SELECT
+
+      IF(TAUE_TARGET < 1.D-10) TAUE_TARGET = 1.D-2
+      ERR_TAUE_RAW = (TAUE2 - TAUE_TARGET) / TAUE_TARGET
+      ERR_TAUE = MIN(MAX(ERR_TAUE_RAW, -0.2D0), 0.2D0)
+
+      C_SCALING_NEW = C_SCALING * (1.D0 + ALPHA_RELAX * ERR_TAUE)
+      IF(C_SCALING_NEW > C_SCALING * 1.02D0) C_SCALING_NEW = C_SCALING * 1.02D0
+      IF(C_SCALING_NEW < C_SCALING * 0.98D0) C_SCALING_NEW = C_SCALING * 0.98D0
+      C_SCALING_NEW = MIN(MAX(C_SCALING_NEW, C_SCALING_MIN), C_SCALING_MAX)
+
+      L_SCALING_CONVERGED = ABS(ERR_TAUE) < 0.01D0
+      C_SCALING = C_SCALING_NEW
+
+      IF(MOD(NTSTEP_IN,100).EQ.0) THEN
+         WRITE(6,'(A,I6,A,F8.4,A,F8.4,A,F8.4,A,F7.2,A)') &
+            'SCALING: NT=', NTSTEP_IN, &
+            ' tau_sim=', TAUE2, &
+            ' tau_tgt=', TAUE_TARGET, &
+            ' C=', C_SCALING, &
+            ' err=', ERR_TAUE_RAW*100.D0, '%'
+      ENDIF
+  END SUBROUTINE tr_scaling_adjust
   END MODULE trloop

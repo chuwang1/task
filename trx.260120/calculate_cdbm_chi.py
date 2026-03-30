@@ -115,8 +115,13 @@ def fexb(x, shear, alpha):
                         (1.1 - 2.0 * shear[~mask_neg] + a[~mask_neg] * shear[~mask_neg]**2 +
                          4.0 * shear[~mask_neg]**3) + 0.75)
 
-    xg = np.where(gamma <= -20.0, 0.0,
-         np.where(gamma >= 20.0, 1.0e10, x**gamma))
+    xg = np.empty_like(x, dtype=float)
+    mask_low = gamma <= -20.0
+    mask_high = gamma >= 20.0
+    mask_mid = ~(mask_low | mask_high)
+    xg[mask_low] = 0.0
+    xg[mask_high] = 1.0e10
+    xg[mask_mid] = x[mask_mid] ** gamma[mask_mid]
     arg = -beta * xg
     return np.where(arg <= -20.0, 0.0,
            np.where(arg >= 20.0, 1.0e10, np.exp(arg)))
@@ -265,7 +270,7 @@ def calculate_cdbm_chi(BB, RR, rs, qp, shear, ne, dpdr, rhoni,
 
 
 def calculate_mdlkai134_chi(BB, RR, RA, rs, qp, shear, ne, dpdr, rhoni,
-                            dvexbdr=None, calf=1.0, cweb=1.0,
+                            alpha_input=None, dvexbdr=None, calf=1.0, cweb=1.0,
                             ck0=12.0, smooth_shear=True):
     """
     Best-effort reproduction of current Fortran `MDLKAI=134` setup.
@@ -284,7 +289,10 @@ def calculate_mdlkai134_chi(BB, RR, RA, rs, qp, shear, ne, dpdr, rhoni,
     if dvexbdr is None:
         dvexbdr = np.zeros_like(rs)
 
-    alpha = -2.0 * RMU0 * qp**2 * RR / BB**2 * dpdr
+    if alpha_input is None:
+        alpha = -2.0 * RMU0 * qp**2 * RR / BB**2 * dpdr
+    else:
+        alpha = np.asarray(alpha_input, dtype=float)
     va = np.sqrt(BB**2 / (RMU0 * rhoni))
     wpe2 = ne * AEE**2 / (AME * EPS0)
     delta2 = VC**2 / wpe2
@@ -458,18 +466,27 @@ def main():
         # Update rs based on actual rho
         rs = rho * RA
 
-        # Try to read chi from TR (AKD from the AKD,AKNCD,AKDWD plot)
+        # Try to read chi from TR
         try:
             csv_akd = find_csv_by_title('AKD,AKNCD,AKDWD')
+            csv_akdwe = find_csv_by_title('AKE,AKNCE,AKDWE')
             if csv_akd is None:
                 raise FileNotFoundError("AKD CSV not found")
             print(f"  AKD   -> {csv_akd}")
             rho_chi, chi_tr_raw = read_tr_profile_csv(csv_akd, 'AKD')
             f_chi = interp1d(rho_chi, chi_tr_raw, bounds_error=False, fill_value='extrapolate')
             chi_tr = f_chi(rho)
+            if csv_akdwe is not None:
+                print(f"  AKDWE -> {csv_akdwe}")
+                rho_akdwe, akdwe_raw = read_tr_profile_csv(csv_akdwe, 'AKDWE')
+                f_akdwe = interp1d(rho_akdwe, akdwe_raw, bounds_error=False, fill_value='extrapolate')
+                akdwe_tr = f_akdwe(rho)
+            else:
+                akdwe_tr = None
         except Exception as e:
             print(f"  AKD   -> not found ({e})")
             chi_tr = None
+            akdwe_tr = None
 
         print("Read profiles from TR CSV files (last time step):")
         print(f"  rho points: {len(rho)}")
@@ -508,6 +525,7 @@ def main():
 
         alpha_tr = None
         chi_tr = None
+        akdwe_tr = None
 
     # Read OMFIT chi for comparison
     chi_omfit_e = None
@@ -544,7 +562,7 @@ def main():
     # Closer reproduction of the current Fortran MDLKAI=134 branch
     mdlkai134 = calculate_mdlkai134_chi(
         BB, RR, RA, rs, q, shear, ne, dpdr, rhoni,
-        dvexbdr=None, calf=1.0, cweb=1.0, ck0=12.0, smooth_shear=True
+        alpha_input=alpha_tr, dvexbdr=None, calf=1.0, cweb=1.0, ck0=12.0, smooth_shear=True
     )
 
     # Calculate CDBM chi with reduced shear (shear_factor=0.5)
@@ -592,6 +610,8 @@ def main():
     ax1 = axes[0, 0]
     ax1.plot(rho, chi_e, 'b-', linewidth=2, label=r'$\chi$ (Legacy model=2)')
     ax1.plot(rho, chi_e_134, 'r-', linewidth=2, label=r'$\chi$ (Fortran-like MDLKAI=134)')
+    if akdwe_tr is not None:
+        ax1.plot(rho, akdwe_tr, 'g--', linewidth=2, label=r'$AKDWE$ (TR)')
     # ax1.plot(rho, chi_e_smin, 'r--', linewidth=2, label=r'$\chi$ (s_min=0.5)')
     # ax1.plot(rho, chi_e_fsfloor, 'g--', linewidth=2, label=r'$\chi$ (fs_floor=0.3)')
     if chi_omfit_e is not None:
@@ -681,6 +701,10 @@ def main():
     print(f"  chi range: {chi_e_134.min():.3f} - {chi_e_134.max():.3f} m^2/s")
     print(f"  fs range : {mdlkai134['fs'].min():.3e} - {mdlkai134['fs'].max():.3e}")
     print(f"  cexb range: {mdlkai134['cexb'].min():.3e} - {mdlkai134['cexb'].max():.3e}")
+    if akdwe_tr is not None:
+        edge = (rho >= 0.8) & (rho <= 0.9)
+        rms = np.sqrt(np.mean((chi_e_134[edge] - akdwe_tr[edge])**2))
+        print(f"  edge RMS vs TR AKDWE (0.8<=rho<=0.9): {rms:.3f} m^2/s")
 
     return rho, chi_e, chi_e_134, chi_e_smin, chi_e_fsfloor, alpha, fs
 

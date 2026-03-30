@@ -21,7 +21,7 @@ from scipy.interpolate import interp1d
 # 1. Read TASK/TR DVRHO data
 # ============================================================
 tr_lines = []
-with open('/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120/tr_data_133.csv', 'r') as f:
+with open('/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120/tr_data_131.csv', 'r') as f:
     for line in f:
         line = line.strip()
         if line.startswith('Title') or line.startswith('X,') or line == '':

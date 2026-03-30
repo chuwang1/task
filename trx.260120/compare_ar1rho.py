@@ -22,7 +22,7 @@ from scipy.interpolate import interp1d
 # 1. Read TASK/TR AR1RHO
 # ============================================================
 tr_lines = []
-with open('/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120/tr_data_132.csv', 'r') as f:
+with open('/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120/tr_data_134.csv', 'r') as f:
     for line in f:
         line = line.strip()
         if line.startswith('Title') or line.startswith('X,') or line == '':

@@ -65,8 +65,15 @@ MODULE trcomm_parm
   INTEGER:: model_nfixed,model_tfixed
   INTEGER:: model_nevolve  ! 0: density evolves normally, 1: density fixed from profile
   INTEGER:: model_prlfixed ! 0: use calculated PRL, 1: read PRL from CSV file
+  INTEGER:: model_chifixed ! 0: use calculated chi, 1/2/3: read chi from file
   CHARACTER(LEN=128):: knam_nfixed,knam_tfixed
   CHARACTER(LEN=128):: knam_prlfixed ! PRL profile file name (CSV format)
+  CHARACTER(LEN=128):: knam_chifixed ! chi profile file name
+  REAL(rkind):: chifixed_factor
+  INTEGER:: model_chimix ! 0:off, 1:edge mix, 2:core+edge dual mix with ext chi
+  REAL(rkind):: rho_chimix_switch, rho_chimix_width
+  REAL(rkind):: rho_chimix_core       ! core mix center (0=off)
+  REAL(rkind):: rho_chimix_core_width ! core transition width
 
   ! === impurity and neutral parameters ===
 
@@ -76,6 +83,12 @@ MODULE trcomm_parm
   ! === fusion reaction parameters ===
 
   REAL(rkind):: SIGMAV_SCALE_FACTOR   ! Manual scale for DT <sigma v> (default=1.0)
+  REAL(rkind):: HY_CORRECTION_FACTOR ! Correction factor for HY ion partition (default=1.0)
+
+  ! === scaling-based transport parameters ===
+  REAL(rkind):: C_SCALING,ALPHA_RELAX,H_FACTOR_USER,C_SCALING_MIN,C_SCALING_MAX
+  REAL(rkind):: TAUE_TARGET
+  LOGICAL:: L_SCALING_CONVERGED
 
   ! === CDBM improvement switch ===
   !  model_cdbm_smooth:
@@ -312,7 +325,8 @@ MODULE trcomm
   REAL(rkind), DIMENSION(:)  , ALLOCATABLE :: & ! (NRM)
        ANC, ANFE, ANNU, ZEFF, PZC, PZFE, BETA, BETAP, BETAL, BETAPL, &
        BETAQ, PBM, PADD, VTOR, VPAR, VPRP, VPOL, WROT, ER, VEXB, WEXB, AGMP, &
-       VEXBP, WEXBP
+       VEXBP, WEXBP, AKEXT_E, AKEXT_I
+  REAL(rkind), DIMENSION(:)  , ALLOCATABLE :: CHIMIXW
 
 !     ****** SOURCE VARIABLES ******
 ! TRSRC
@@ -590,7 +604,7 @@ MODULE trcomm
       IF(IERR.NE.0) GOTO 900
     ALLOCATE(VPOL(NRMAX),WROT(NRMAX),ER(NRMAX),VEXB(NRMAX),STAT=IERR)
       IF(IERR.NE.0) GOTO 900
-    ALLOCATE(VEXBP(NRMAX),WEXBP(NRMAX),STAT=IERR)
+    ALLOCATE(VEXBP(NRMAX),WEXBP(NRMAX),AKEXT_E(NRMAX),AKEXT_I(NRMAX),STAT=IERR)
       IF(IERR.NE.0) GOTO 900
     ALLOCATE(WEXB(NRMAX),AGMP(NRMAX),AJ(NRMAX),AJOH(NRMAX),STAT=IERR)
       IF(IERR.NE.0) GOTO 900
@@ -701,6 +715,7 @@ MODULE trcomm
     ALLOCATE(AK(NRMAX,NSTM),AVK(NRMAX,NSTM),AD(NRMAX,NSTM),STAT=IERR)
       IF(IERR.NE.0) GOTO 900
     ALLOCATE(AV(NRMAX,NSTM),AKNC(NRMAX,NSTM),AKDW(NRMAX,NSTM),STAT=IERR)
+    ALLOCATE(CHIMIXW(NRMAX),STAT=IERR)
       IF(IERR.NE.0) GOTO 900
     ALLOCATE(ADNC(NRMAX,NSTM),ADDW(NRMAX,NSTM),AVNC(NRMAX,NSTM),STAT=IERR)
       IF(IERR.NE.0) GOTO 900
@@ -816,7 +831,7 @@ MODULE trcomm
     DEALLOCATE(RG,RM,RHOM,RHOG,BP,RDP,RPSI,RN,RT,RU,RW)
     DEALLOCATE(RNF,RTF,ANC,ANFE,ANNU,ZEFF,PZC,PZFE,BETA,BETAP,BETAL,BETAPL)
     DEALLOCATE(BETAQ,PBM,PADD,VTOR,VPAR,VPRP,VPOL,WROT,ER,VEXB,WEXB,AGMP)
-    DEALLOCATE(VEXBP,WEXBP)
+    DEALLOCATE(VEXBP,WEXBP,AKEXT_E,AKEXT_I)
     DEALLOCATE(AJ,AJOH, EZOH,QP,AJTOR,AJNB,AJRF,AJBS,QPINV)
     DEALLOCATE(SNB_NNBNR,PNB_NNBNR)
     DEALLOCATE(SNB_NSNR,PNB_NSNR,SNB_NR,PNB_NR,SNB_NS,PNB_NS)
@@ -833,7 +848,7 @@ MODULE trcomm
     DEALLOCATE(SIE,SCX,TSIE,TSCX,PIN,SSIN,PBCL,SPE,SPE_NSNPELNR)
     DEALLOCATE(PFCL,PRF,PRFV,AJRFV,RGFLX)
     DEALLOCATE(ETA,S,ALPHA,RKCV,TAUB,TAUF,TAUK,AK,AVK,AD,AV)
-    DEALLOCATE(AKNC,AKDW,ADNC,ADDW,AVNC,AVDW,AVKNC,AVKDW)
+    DEALLOCATE(AKNC,AKDW,CHIMIXW,ADNC,ADDW,AVNC,AVDW,AVKNC,AVKDW)
     DEALLOCATE(VGR1,VGR2,VGR3,VGR4)
     DEALLOCATE(ANS0,TS0,ANSAV,ANLAV,TSAV,WST,PRFT,PBCLT,PFCLT)
     DEALLOCATE(PLT,SPET,SLT,PRFVT)
@@ -921,6 +936,8 @@ MODULE trcomm
     IF(ALLOCATED(PCX      ))     DEALLOCATE(PCX      )
     IF(ALLOCATED(PIE      ))     DEALLOCATE(PIE      )
     IF(ALLOCATED(QEI      ))     DEALLOCATE(QEI      )
+    IF(ALLOCATED(AKEXT_E  ))     DEALLOCATE(AKEXT_E  )
+    IF(ALLOCATED(AKEXT_I  ))     DEALLOCATE(AKEXT_I  )
     IF(ALLOCATED(SIE      ))     DEALLOCATE(SIE      )
     IF(ALLOCATED(SCX      ))     DEALLOCATE(SCX      )
     IF(ALLOCATED(TSIE     ))     DEALLOCATE(TSIE     )
@@ -948,6 +965,7 @@ MODULE trcomm
     IF(ALLOCATED(AV       ))     DEALLOCATE(AV       )
     IF(ALLOCATED(AKNC     ))     DEALLOCATE(AKNC     )
     IF(ALLOCATED(AKDW     ))     DEALLOCATE(AKDW     )
+    IF(ALLOCATED(CHIMIXW  ))     DEALLOCATE(CHIMIXW  )
     IF(ALLOCATED(ADNC     ))     DEALLOCATE(ADNC     )
     IF(ALLOCATED(ADDW     ))     DEALLOCATE(ADDW     )
     IF(ALLOCATED(AVNC     ))     DEALLOCATE(AVNC     )

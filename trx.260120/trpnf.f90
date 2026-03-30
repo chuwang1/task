@@ -268,9 +268,11 @@ CONTAINS
          VCA3 = P1*RN(NR,NS_He4)*PZ(NS_He4)**2/AMA
          VC3  = VCD3+VCT3+VCA3
          VCR  = VC3**(1.D0/3.D0)
-         HYF=HY(VF/VCR)
-         TAUS = 0.2D0*PA(NS_He4)*ABS(TE)**1.5D0 &
-              /(PZ(NS_He4)**2*ANE*COULOG(1,2,ANE,TE))
+          HYF=HY(VF/VCR)
+          ! Apply correction factor for ion partition (clamp strictly below 1)
+          HYF = MIN(HYF * HY_CORRECTION_FACTOR, 1.D0-1.D-10)
+          TAUS = 0.2D0*PA(NS_He4)*ABS(TE)**1.5D0 &
+               /(PZ(NS_He4)**2*ANE*COULOG(1,2,ANE,TE))
          TAUF(NNF,NR)= 0.5D0*TAUS*(1.D0-HYF)
          RNF(NR,NNBMAX+NNF) &
               = 2.D0*LOG(1.D0+(VF/VCR)**3)*WF /(3.D0*(1.D0-HYF)*3.5D3)
@@ -392,8 +394,10 @@ CONTAINS
             VCA3 = P1*RN(NR,4)*PZ(NS_He4)**2/AMA
             VC3  = VCD3+VCT3+VCA3
             VCR  = VC3**(1.D0/3.D0)
-            HYF=HY(VF/VCR)
-            TAUS = 0.2D0*PA(NS_He4)*ABS(TE)**1.5D0 /(PZ(NS_He4)**2*ANE*COULOG(1,2,ANE,TE))
+             HYF=HY(VF/VCR)
+             ! Apply correction factor for ion partition (clamp strictly below 1)
+             HYF = MIN(HYF * HY_CORRECTION_FACTOR, 1.D0-1.D-10)
+             TAUS = 0.2D0*PA(NS_He4)*ABS(TE)**1.5D0 /(PZ(NS_He4)**2*ANE*COULOG(1,2,ANE,TE))
             ! TAUF(NR)= 0.5D0*TAUS*(1.D0-HYF)
             TAUF(nnf,NR) = 0.5D0*TAUS*(1.D0-HYF)
             RNF(NR,2)= 2.D0*LOG(1.D0+(VF/VCR)**3)*WF /(3.D0*(1.D0-HYF)*3.5D3)
@@ -576,9 +580,11 @@ CONTAINS
          VCA3  = P1*RN(NR,NS_He4)*PZ(NS_He4)**2/AMA
          VC3  = VCD3+VCHe3+VCA3
          VCR  = VC3**(1.D0/3.D0)
-         HYF=HY(VF/VCR)
-         TAUS = 0.2D0*PA(NS_He4)*ABS(TE)**1.5D0 /(PZ(NS_He4)**2*ANE*COULOG(1,2,ANE,TE))
-         TAUF(nnf,NR)= 0.5D0*TAUS*(1.D0-HYF)
+          HYF=HY(VF/VCR)
+          ! Apply correction factor for ion partition (clamp strictly below 1)
+          HYF = MIN(HYF * HY_CORRECTION_FACTOR, 1.D0-1.D-10)
+          TAUS = 0.2D0*PA(NS_He4)*ABS(TE)**1.5D0 /(PZ(NS_He4)**2*ANE*COULOG(1,2,ANE,TE))
+          TAUF(nnf,NR)= 0.5D0*TAUS*(1.D0-HYF)
          RNF(NR,NNBMAX+NNF) &
               = 2.D0*LOG(1.D0+(VF/VCR)**3)*WF /(3.D0*(1.D0-HYF)*3.6D3)
          IF(RNF(NR,NNBMAX+NNF).GT.0.D0) THEN

@@ -10,3 +10,4 @@ rm -rf ./tr_data_*
 /Users/dengxiaoya/miniforge3/envs/Fusion/bin/python compare_jtot_jbs_v3.py
 /Users/dengxiaoya/miniforge3/envs/Fusion/bin/python verify_energy_balance.py
 /Users/dengxiaoya/miniforge3/envs/Fusion/bin/python calculate_cdbm_chi.py
+/Users/dengxiaoya/miniforge3/envs/Fusion/bin/python compare_chimix_external_vs_tr.py

@@ -255,6 +255,7 @@ comparisons = [
 
 for ax, (omfit_key, tr_key, title, sign_o, sign_t) in zip(axes.flatten(), comparisons):
     # OMFIT
+
     ax.plot(r_a_omfit, sign_o * OMFIT[omfit_key], 'r-', lw=2, label=f'OMFIT: {omfit_key}')
     # TR
     ax.plot(r_a_tr, sign_t * TR[tr_key], 'b--', lw=2, label=f'TR: {tr_key}')

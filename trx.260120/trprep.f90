@@ -11,7 +11,8 @@ CONTAINS
 
     USE trcomm
     USE plprep
-    USE trprof
+  USE trprof
+  USE trfixed, ONLY: tr_prep_chifixed
     USE trbpsd
     USE trmetric
 
@@ -88,6 +89,11 @@ CONTAINS
 !     *** CALCULATE ANEAVE and ANC, ANFE ***
 
     CALL tr_prof_impurity
+
+!     *** Load external chi if fixed/scaling/mixed models need it ***
+    IF(model_chifixed.GE.1 .OR. model_chimix.GE.1 .OR. (MDLKAI.GE.170.AND.MDLKAI.LE.189)) THEN
+       CALL tr_prep_chifixed
+    ENDIF
 
 !     *** CALCULATE AJ, QP, BP, EZ ***
 

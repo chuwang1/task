@@ -195,9 +195,35 @@ CONTAINS
       model_prlfixed=0
       knam_prlfixed='omfit_prl_for_tr.csv'
 
+      !  model_chifixed: chi from external file
+      !       0 : use calculated chi from transport model
+      !       1 : read from file, with core reduction (legacy)
+      !       2 : read from file, multiply core by chifixed_factor
+      !       3 : read from file, multiply edge by chifixed_factor
+      model_chifixed=0
+      knam_chifixed='Chi_Se_COREDIV.DAT'
+      chifixed_factor=1.0D0
+      model_chimix=0
+      rho_chimix_switch=0.9D0
+      rho_chimix_width=0.02D0
+      rho_chimix_core=0.0D0       ! 0=off; e.g. 0.2
+      rho_chimix_core_width=0.02D0
+
       !  SIGMAV_SCALE_FACTOR: manual scaling for DT <sigma v>
       !       1.0 = no scaling (default)
       SIGMAV_SCALE_FACTOR = 1.0D0
+
+      !  HY_CORRECTION_FACTOR: correction for HY ion partition
+      !       1.0 = no change (default), ~1.16 matches TRANSP
+      HY_CORRECTION_FACTOR = 1.0D0
+
+      C_SCALING = 1.0D0
+      ALPHA_RELAX = 0.5D0
+      H_FACTOR_USER = 1.0D0
+      C_SCALING_MIN = 0.1D0
+      C_SCALING_MAX = 10.0D0
+      TAUE_TARGET = 0.0D0
+      L_SCALING_CONVERGED = .FALSE.
 
       !  model_cdbm_smooth: CDBM improvement switch
       !       0 : original CDBM (no smoothing, no shear min, no chi limits)

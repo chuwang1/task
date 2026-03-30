@@ -26,6 +26,7 @@ MODULE trfixed
   PUBLIC tr_prep_nfixed ! read fixed density pfofile parameters
   PUBLIC tr_prep_tfixed ! read fixed temperature profile parameters
   PUBLIC tr_prep_prlfixed ! read PRL from CSV file
+  PUBLIC tr_prep_chifixed ! read chi from external file
 
 CONTAINS
 
@@ -348,5 +349,84 @@ CONTAINS
 
     RETURN
   END SUBROUTINE tr_prep_prlfixed
+
+  SUBROUTINE tr_prep_chifixed
+    USE trcomm
+    USE libfio
+    IMPLICIT NONE
+    INTEGER:: nfl,nr,ndata_csv,i,j,ierr,ios
+    INTEGER,PARAMETER:: NMAX_CSV=300
+    REAL(rkind):: r_csv(NMAX_CSV),rho_csv(NMAX_CSV),chi_e_csv(NMAX_CSV),chi_i_csv(NMAX_CSV)
+    REAL(rkind):: dummy_ne,dummy_ni,rho,frac
+    CHARACTER(LEN=512):: line
+
+    IF(model_chifixed.EQ.0 .AND. model_chimix.EQ.0 &
+         .AND. (MDLKAI.LT.170 .OR. MDLKAI.GT.189)) RETURN
+
+    NFL=14
+    CALL fropen(NFL,knam_chifixed,1,0,'chi',ierr)
+    IF(ierr.NE.0) THEN
+       WRITE(6,'(A)') 'XX tr_prep_chifixed: cannot open file '//TRIM(knam_chifixed)
+       RETURN
+    END IF
+
+    READ(NFL,'(A)',IOSTAT=ios) line
+    ndata_csv=0
+    DO i=1,NMAX_CSV
+       READ(NFL,*,IOSTAT=ios) r_csv(i),dummy_ne,dummy_ni,chi_e_csv(i),chi_i_csv(i)
+       IF(ios.NE.0) EXIT
+       ndata_csv=i
+    END DO
+    CLOSE(NFL)
+
+    IF(ndata_csv.LT.2) THEN
+       WRITE(6,'(A)') 'XX tr_prep_chifixed: insufficient data in file'
+       RETURN
+    END IF
+
+    DO i=1,ndata_csv
+       rho_csv(i)=r_csv(i)
+    END DO
+
+    WRITE(6,'(A,I5,A)') '## tr_prep_chifixed: read ',ndata_csv,' points from '//TRIM(knam_chifixed)
+    DO nr=1,NRMAX
+       rho = RM(nr)
+       IF(rho.LE.rho_csv(1)) THEN
+          AKEXT_E(nr) = chi_e_csv(1)
+          AKEXT_I(nr) = chi_i_csv(1)
+       ELSE IF(rho.GE.rho_csv(ndata_csv)) THEN
+          AKEXT_E(nr) = chi_e_csv(ndata_csv)
+          AKEXT_I(nr) = chi_i_csv(ndata_csv)
+       ELSE
+          DO j=1,ndata_csv-1
+             IF(rho.GE.rho_csv(j).AND.rho.LT.rho_csv(j+1)) THEN
+                frac = (rho-rho_csv(j))/(rho_csv(j+1)-rho_csv(j))
+                AKEXT_E(nr) = (1.D0-frac)*chi_e_csv(j)+frac*chi_e_csv(j+1)
+                AKEXT_I(nr) = (1.D0-frac)*chi_i_csv(j)+frac*chi_i_csv(j+1)
+                EXIT
+             END IF
+          END DO
+       END IF
+    END DO
+
+    IF(model_chifixed.EQ.2) THEN
+       DO nr=1,NRMAX
+          rho = RM(nr)
+          frac = 0.5D0*(1.D0-TANH((rho-0.4D0)/0.1D0))
+          AKEXT_E(nr)=AKEXT_E(nr)*(1.D0+(chifixed_factor-1.D0)*frac)
+          AKEXT_I(nr)=AKEXT_I(nr)*(1.D0+(chifixed_factor-1.D0)*frac)
+       END DO
+    ELSE IF(model_chifixed.EQ.3) THEN
+       DO nr=1,NRMAX
+          rho = RM(nr)
+          frac = 0.5D0*(1.D0+TANH((rho-0.5D0)/0.1D0))
+          AKEXT_E(nr)=AKEXT_E(nr)*(1.D0+(chifixed_factor-1.D0)*frac)
+          AKEXT_I(nr)=AKEXT_I(nr)*(1.D0+(chifixed_factor-1.D0)*frac)
+       END DO
+    END IF
+
+    WRITE(6,'(A,2ES12.4)') '## tr_prep_chifixed: chi_e range = ',MINVAL(AKEXT_E(1:NRMAX)),MAXVAL(AKEXT_E(1:NRMAX))
+    WRITE(6,'(A,2ES12.4)') '## tr_prep_chifixed: chi_i range = ',MINVAL(AKEXT_I(1:NRMAX)),MAXVAL(AKEXT_I(1:NRMAX))
+  END SUBROUTINE tr_prep_chifixed
 
 END MODULE trfixed
