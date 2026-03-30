@@ -8,6 +8,8 @@ C
       INCLUDE '../eq/eqcomc.inc'
 C
       REAL(rkind),DIMENSION(:,:),ALLOCATABLE::  PSIRG,PSIZG,PSIRZG
+      REAL(rkind) RAXIS_IN,ZAXIS_IN,DRAX,DZAX,DAXLIM,DLEN,SCL
+      REAL(rkind) RLCFSMIN,RLCFSMAX,ZLCFSMIN,ZLCFSMAX,DPAD,ZPAD
       EXTERNAL PSIGD,PSIGZ0
 C
       ALLOCATE(PSIRG(NRGM,NZGM),PSIZG(NRGM,NZGM),PSIRZG(NRGM,NZGM))
@@ -19,15 +21,64 @@ C
 C
 C     ----- calculate position of magnetic axis -----
 C
+      RAXIS_IN=RAXIS
+      ZAXIS_IN=ZAXIS
+
       CALL find_axis
+      IF(IERR.NE.0) THEN
+         IF(MODELG.EQ.5) THEN
+            WRITE(6,'(A,1P2E12.4)')
+     &      '!! EQAXIS: fallback to previous axis R/Z=',
+     &      RAXIS_IN,ZAXIS_IN
+            RAXIS=RAXIS_IN
+            ZAXIS=ZAXIS_IN
+            IERR=0
+         ELSE
+            RETURN
+         ENDIF
+      ENDIF
+
+      IF(MODELG.EQ.5) THEN
+         DAXLIM=2.5D-1
+         DRAX=RAXIS-RAXIS_IN
+         DZAX=ZAXIS-ZAXIS_IN
+         DLEN=SQRT(DRAX*DRAX+DZAX*DZAX)
+         IF(DLEN.GT.DAXLIM.AND.DLEN.GT.1.D-14) THEN
+            SCL=DAXLIM/DLEN
+            WRITE(6,'(A,1P4E12.4)')
+     &      '!! EQAXIS: limit axis step DR,DZ,|D|,LIM=',
+     &      DRAX,DZAX,DLEN,DAXLIM
+            RAXIS=RAXIS_IN+SCL*DRAX
+            ZAXIS=ZAXIS_IN+SCL*DZAX
+         ENDIF
+      ENDIF
 C
 C      WRITE(6,*) RAXIS,ZAXIS,PSIG(RAXIS,ZAXIS)
 C
       IF(MDLEQF.LT.10) THEN
-         RMAX=RR+RB
-         RMIN=RR-RB
-         ZMAX= RKAP*RB
-         ZMIN=-RKAP*RB
+         IF(MODELG.EQ.5.AND.NSUMAX.GE.8.AND.IUSELCFS.NE.0) THEN
+            RLCFSMIN=RSU(1)
+            RLCFSMAX=RSU(1)
+            ZLCFSMIN=ZSU(1)
+            ZLCFSMAX=ZSU(1)
+            DO NSU=2,NSUMAX
+               RLCFSMIN=MIN(RLCFSMIN,RSU(NSU))
+               RLCFSMAX=MAX(RLCFSMAX,RSU(NSU))
+               ZLCFSMIN=MIN(ZLCFSMIN,ZSU(NSU))
+               ZLCFSMAX=MAX(ZLCFSMAX,ZSU(NSU))
+            ENDDO
+            DPAD=MAX(5.D-2,5.D-2*(RLCFSMAX-RLCFSMIN))
+            ZPAD=MAX(5.D-2,5.D-2*(ZLCFSMAX-ZLCFSMIN))
+            RMIN=RLCFSMIN-DPAD
+            RMAX=RLCFSMAX+DPAD
+            ZMIN=ZLCFSMIN-ZPAD
+            ZMAX=ZLCFSMAX+ZPAD
+         ELSE
+            RMAX=RR+RB
+            RMIN=RR-RB
+            ZMAX= RKAP*RB
+            ZMIN=-RKAP*RB
+         ENDIF
       ELSE
          RMAX=RGMAX
          RMIN=RGMIN
@@ -44,9 +95,27 @@ C
          PSI0=PSIG(RAXIS,ZAXIS)
          PSIPA=-PSI0
       ELSE
-         WRITE(6,'(A)') 'XX EQAXIS: AXIS OUT OF PLASMA:'
-         IERR=103
-         RETURN
+         IF(MODELG.EQ.5) THEN
+            WRITE(6,'(A)')
+     &         '!! EQAXIS: axis out of bounds, revert to previous axis'
+            RAXIS=RAXIS_IN
+            ZAXIS=ZAXIS_IN
+            IF(RAXIS.LE.RMAX.AND.
+     &         RAXIS.GE.RMIN.AND.
+     &         ZAXIS.LE.ZMAX.AND.
+     &         ZAXIS.GE.ZMIN) THEN
+               PSI0=PSIG(RAXIS,ZAXIS)
+               PSIPA=-PSI0
+            ELSE
+               WRITE(6,'(A)') 'XX EQAXIS: AXIS OUT OF PLASMA:'
+               IERR=103
+               RETURN
+            ENDIF
+         ELSE
+            WRITE(6,'(A)') 'XX EQAXIS: AXIS OUT OF PLASMA:'
+            IERR=103
+            RETURN
+         ENDIF
       ENDIF
 C
 C     ----- calculate outer plasma surface -----
@@ -103,7 +172,6 @@ C
       XA(N)=X
       YA(1,N)=Y(1)
       YA(2,N)=Y(2)
-      WRITE(6,'(A,I6,3ES12.4)') '@@@ n,X,Y=',n,X,Y(1),Y(2)
 C
       IMODE=0
       DO I=2,NMAX
@@ -125,7 +193,6 @@ C
          YA(1,N)=Y(1)
          YA(2,N)=Y(2)
       ENDDO
-      WRITE(6,'(A,I6,3ES12.4)') '@@@ n,X,Y=',n,X,Y(1),Y(2)
 C
       IF(ISTEP.LE.4) THEN
          H=FACT*H
@@ -151,7 +218,6 @@ C
       RETURN
 C
  2000 CONTINUE
-      WRITE(6,'(A,I6,3ES12.4)') '@@@ n,X,Y=',n,X,Y(1),Y(2)
       DEL=(ZINIT-Y(2))/(YOUT(2)-Y(2))
       X=X+H*DEL
       Y(1)=Y(1)+(YOUT(1)-Y(1))*DEL
@@ -170,11 +236,25 @@ C
       SUBROUTINE EQDERV(X,Y,DYDX)
 C
       INCLUDE '../eq/eqcomc.inc'
+      INTEGER NPSID_WARN
       DIMENSION Y(2),DYDX(2)
+      SAVE NPSID_WARN
+      DATA NPSID_WARN/0/
 C
       CALL PSIGD(Y(1),Y(2),PSIRL,PSIZL)
 C
       PSID=SQRT(PSIRL**2+PSIZL**2)
+      IF(PSID.LE.1.D-14.OR.PSID.NE.PSID) THEN
+         IF(NPSID_WARN.LT.8) THEN
+            WRITE(6,'(A,1P5E12.4)')
+     &         'XX EQDERV: small/NaN |grad psi| at R,Z,PSIR,PSIZ,PSID=',
+     &         Y(1),Y(2),PSIRL,PSIZL,PSID
+         ENDIF
+         NPSID_WARN=NPSID_WARN+1
+         DYDX(1)=0.D0
+         DYDX(2)=0.D0
+         RETURN
+      ENDIF
 C
       DYDX(1)=-PSIZL/PSID
       DYDX(2)= PSIRL/PSID

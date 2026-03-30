@@ -10,8 +10,8 @@ include ../mtxp/make.mtxp
 #LIB_MTX=$(LIBXMTX_KSP)
 #LIBX_MTX=$(LIBX_MTX_KSP)
 
-FFLAGS=-g $(OFLAGS)
-#FFLAGS=$(DFLAGS)
+#FFLAGS=-g $(OFLAGS)
+FFLAGS=$(DFLAGS)
 
 MODINCLUDE=-I$(MOD) -I../../bpsd/$(MOD) -I../mtxp/$(MOD) -I../pl/$(MOD) -I../lib/$(MOD)
 
@@ -19,7 +19,7 @@ SRCX = equcom.f90 equread.f90 eqlib.f90
 SRCS = eqbpsd.f eqinit.f eqmenu.f eqcalc.f eqcalq.f eqcalv.f \
        eqsub.f eqfunc.f eqintf.f eqsplf.f equintf.f \
        eq-eqdsk.f eq-qst.f eqfile.f \
-       eqgout.f eqgsub.f eqgetp.f \
+       eqgout.f eqgsub.f eqgetp.f eqgs1d_export.f eqgs2d_export.f \
        newton.f invematrix.f equnit.f eqrppl.f
 
 SRCT = trtest.f treqin.f
@@ -27,6 +27,7 @@ SRCP = pltest.f
 SRCA = aktest.f akeqin.f
 SRC2D= eqg2d.f
 SRC3D= eqg3d.f
+SRCM = modelg5_rebuild.f
 
 OBJS = $(SRCX:.f90=.o) $(SRCS:.f=.o)
 OBJT = $(SRCT:.f=.o)
@@ -34,6 +35,7 @@ OBJP = $(SRCP:.f=.o)
 OBJA = $(SRCA:.f=.o)
 OBJ2D=$(SRC2D:.f=.o)
 OBJ3D=$(SRC3D:.f=.o)
+OBJM = $(SRCM:.f=.o)
 
 LIBS2 = libeq.a ../pl/libpl.a ../lib/libgrf.a ../lib/libtask.a ../../bpsd/libbpsd.a
 LIBS3 = ../pl/libpl.a libeq3.a ../lib/libgrf.a ../lib/libtask.a ../../bpsd/libbpsd.a
@@ -78,6 +80,9 @@ eq3: libs libeq3.a eqmain.o
 
 tr : libs libeq.a $(OBJT)
 	$(FLINKER) $(OBJT) $(LIBS2) -o $@ $(FFLAGS) $(FLIBS) $(LIBX_MTX)
+
+m5 : libs libeq.a $(OBJM)
+	$(FLINKER) $(OBJM) $(LIBS2) -o $@ $(FFLAGS) $(FLIBS) $(LIBX_MTX)
 
 pl : libs libeq.a $(OGJP)
 	$(FLINKER) $(OBJP) $(LIBS2) -o $@ $(FFLAGS) $(FLIBS) $(LIBX_MTX)
@@ -129,3 +134,4 @@ aktest.o: aktest.f
 akeqin.o: akeqin.f $(EQCOMM) eqcom3.inc
 newton.o: newton.f
 invematrix.o: invematrix.f
+modelg5_rebuild.o: modelg5_rebuild.f $(EQCOMM) eqcom3.inc eqcom4.inc

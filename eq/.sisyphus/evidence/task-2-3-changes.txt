@@ -1,0 +1,55 @@
+Task T2 + T3 changes to rebuild_f_from_q_eqdata.py
+===================================================
+File: /Users/dengxiaoya/TASK/latest/task/eq/in/rebuild_f_from_q_eqdata.py
+Date: 2026-03-03
+
+## T3 — Clarify F_direct q source semantics (line 266)
+
+BEFORE:
+    f_direct[good] = FOUR_PI2 * q[good] / denom[good]
+
+AFTER:
+    f_direct[good] = FOUR_PI2 * q[good] / denom[good]  # F_direct always uses q(psi) from radial CSV (not q_use)
+
+Rationale: F_direct is the algebraic formula using q(psi) from the radial CSV.
+It never uses q_use (which may be q from EQIPQP inputs or q from gfile).
+
+## T2 + T3 — Dual q output columns
+
+### Change A: Initialize q_gfile_out to NaN before method branch (line 271)
+
+Added after `f_rec_ipgeom = None`:
+    q_gfile_out = np.full_like(q, np.nan, dtype=float)  # populated if --use-gfile-qp
+
+This ensures q_gfile_out is always defined regardless of which method path is taken.
+If method is "direct", q_gfile_out remains NaN.
+
+### Change B: Set q_gfile_out inside if args.use_gfile_qp block (line 400)
+
+Inside the eqipqp method block, after `q_use = q_gf`:
+    q_gfile_out = q_gf.copy()
+
+This captures the gfile q that was actually used for F_rebuilt.
+It is set ONLY when --use-gfile-qp is active, so downstream can detect the source.
+
+### Change C: Add q_source_str and new DataFrame columns (lines 479, 484-485)
+
+Before out_df = pd.DataFrame(...):
+    q_source_str = "gfile" if args.use_gfile_qp else "radial"
+
+In the DataFrame dict, after "q": q,:
+    "q_gfile": q_gfile_out,
+    "q_source": q_source_str,
+
+Semantics of new columns:
+- "q_gfile": q values from gfile (q_gf.copy()) when --use-gfile-qp is active; NaN otherwise.
+  This distinguishes which q was actually used for F_rebuilt.
+- "q_source": human-readable string "gfile" or "radial" indicating source of q used for F_rebuilt.
+  Machine-readable flag for downstream analysis.
+
+## Invariants preserved
+- "q" column still contains original q(psi) from radial CSV (q from dr[c_q])
+- No existing columns renamed or deleted
+- No computation logic changed (F_direct, F_rebuilt formulas unchanged)
+- No function signatures modified
+- No new imports added

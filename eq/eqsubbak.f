@@ -1,0 +1,521 @@
+C     $Id$
+C
+C     ***** CALCULATE MAGNETIC AXIS AND EDGE *****
+C
+      SUBROUTINE EQAXIS(IERR)
+C
+      USE libbrent
+      INCLUDE '../eq/eqcomc.inc'
+C
+      REAL(rkind),DIMENSION(:,:),ALLOCATABLE::  PSIRG,PSIZG,PSIRZG
+      REAL(rkind) RAXIS_IN,ZAXIS_IN,DRAX,DZAX,DAXLIM,DLEN,SCL
+      REAL(rkind) RLCFSMIN,RLCFSMAX,ZLCFSMIN,ZLCFSMAX,DPAD,ZPAD
+      EXTERNAL PSIGD,PSIGZ0
+C
+      ALLOCATE(PSIRG(NRGM,NZGM),PSIZG(NRGM,NZGM),PSIRZG(NRGM,NZGM))
+      IERR=0
+C
+C     ----- calculate setup for psig(R,Z) -----
+C
+      CALL setup_psig
+C
+C     ----- calculate position of magnetic axis -----
+C
+      RAXIS_IN=RAXIS
+      ZAXIS_IN=ZAXIS
+
+      CALL find_axis
+      IF(IERR.NE.0) THEN
+         IF(MODELG.EQ.5) THEN
+            WRITE(6,'(A,1P2E12.4)')
+     &      '!! EQAXIS: fallback to previous axis R/Z=',
+     &      RAXIS_IN,ZAXIS_IN
+            RAXIS=RAXIS_IN
+            ZAXIS=ZAXIS_IN
+            IERR=0
+         ELSE
+            RETURN
+         ENDIF
+      ENDIF
+
+      IF(MODELG.EQ.5) THEN
+         DAXLIM=2.5D-1
+         DRAX=RAXIS-RAXIS_IN
+         DZAX=ZAXIS-ZAXIS_IN
+         DLEN=SQRT(DRAX*DRAX+DZAX*DZAX)
+         IF(DLEN.GT.DAXLIM.AND.DLEN.GT.1.D-14) THEN
+            SCL=DAXLIM/DLEN
+            WRITE(6,'(A,1P4E12.4)')
+     &      '!! EQAXIS: limit axis step DR,DZ,|D|,LIM=',
+     &      DRAX,DZAX,DLEN,DAXLIM
+            RAXIS=RAXIS_IN+SCL*DRAX
+            ZAXIS=ZAXIS_IN+SCL*DZAX
+         ENDIF
+      ENDIF
+C
+C      WRITE(6,*) RAXIS,ZAXIS,PSIG(RAXIS,ZAXIS)
+C
+      IF(MDLEQF.LT.10) THEN
+         IF(MODELG.EQ.5.AND.NSUMAX.GE.8.AND.IUSELCFS.NE.0) THEN
+            RLCFSMIN=RSU(1)
+            RLCFSMAX=RSU(1)
+            ZLCFSMIN=ZSU(1)
+            ZLCFSMAX=ZSU(1)
+            DO NSU=2,NSUMAX
+               RLCFSMIN=MIN(RLCFSMIN,RSU(NSU))
+               RLCFSMAX=MAX(RLCFSMAX,RSU(NSU))
+               ZLCFSMIN=MIN(ZLCFSMIN,ZSU(NSU))
+               ZLCFSMAX=MAX(ZLCFSMAX,ZSU(NSU))
+            ENDDO
+            DPAD=MAX(5.D-2,5.D-2*(RLCFSMAX-RLCFSMIN))
+            ZPAD=MAX(5.D-2,5.D-2*(ZLCFSMAX-ZLCFSMIN))
+            RMIN=RLCFSMIN-DPAD
+            RMAX=RLCFSMAX+DPAD
+            ZMIN=ZLCFSMIN-ZPAD
+            ZMAX=ZLCFSMAX+ZPAD
+         ELSE
+            RMAX=RR+RB
+            RMIN=RR-RB
+            ZMAX= RKAP*RB
+            ZMIN=-RKAP*RB
+         ENDIF
+      ELSE
+         RMAX=RGMAX
+         RMIN=RGMIN
+         ZMAX=ZGMAX
+         ZMIN=ZGMIN
+      ENDIF
+C
+C      write(6,'(1P6E12.4)') RAXIS,RMIN,RMAX,ZAXIS,ZMIN,ZMAX
+C
+      IF(RAXIS.LE.RMAX.AND.
+     &   RAXIS.GE.RMIN.AND.
+     &   ZAXIS.LE.ZMAX.AND.
+     &   ZAXIS.GE.ZMIN) THEN
+         PSI0=PSIG(RAXIS,ZAXIS)
+         PSIPA=-PSI0
+      ELSE
+         IF(MODELG.EQ.5) THEN
+            WRITE(6,'(A)')
+     &         '!! EQAXIS: axis out of bounds, revert to previous axis'
+            RAXIS=RAXIS_IN
+            ZAXIS=ZAXIS_IN
+            IF(RAXIS.LE.RMAX.AND.
+     &         RAXIS.GE.RMIN.AND.
+     &         ZAXIS.LE.ZMAX.AND.
+     &         ZAXIS.GE.ZMIN) THEN
+               PSI0=PSIG(RAXIS,ZAXIS)
+               PSIPA=-PSI0
+            ELSE
+               WRITE(6,'(A)') 'XX EQAXIS: AXIS OUT OF PLASMA:'
+               IERR=103
+               RETURN
+            ENDIF
+         ELSE
+            WRITE(6,'(A)') 'XX EQAXIS: AXIS OUT OF PLASMA:'
+            IERR=103
+            RETURN
+         ENDIF
+      ENDIF
+C
+C     ----- calculate outer plasma surface -----
+C
+      IF(PSIGZ0(RR)*PSIGZ0(RMAX).GE.0.D0) THEN
+         REDGE=RMAX
+      ELSE
+         REDGE=FBRENT(PSIGZ0,RR,RMAX,1.D-8)
+      ENDIF
+C      write(6,*) 'redge=',redge
+C
+      DEALLOCATE(PSIRG,PSIZG,PSIRZG)
+      RETURN
+      END
+C
+C     ***** INTEGRATE ALONG THE MAGNETIC FIELD LINE *****
+C
+      SUBROUTINE EQMAGS(RINIT,ZINIT,NMAX,XA,YA,N,IERR)
+C
+C     ** Input **
+C       RINIT : Initial starting point for tracing
+C       ZINIT : Initial starting point for tracing
+C       NMAX  : Size of arraies of XA, YA
+C     ** Output **
+C       XA    : Length from (RINIT,ZINIT) to the current position along the field line
+C       YA    : Coordinate of the current position
+C       N     : Number of partitions along the magnetic surface
+C       IERR  : Error indicator
+C
+      USE eqlib
+      INCLUDE '../eq/eqcomc.inc'
+C
+      EXTERNAL EQDERV
+      DIMENSION Y(2),DYDX(2),YOUT(2)
+      DIMENSION XA(NMAX),YA(2,NMAX)
+      REAL*8 TH0,TH1,DTH,THACC,DLRET,DLCLOSE
+      INTEGER ICROS
+C
+      NEQ=2
+C
+      FACT=SQRT(SQRT(2.D0))
+      H=FACT*2.D0*PI*RKAP*(RINIT-RAXIS)/NMAX
+      ISTEP=0
+C
+C      WRITE(6,'(I5,1P3E12.4)') 0,H,RAXIS,ZAXIS
+C      WRITE(6,'(I5,1P3E12.4)') NMAX,FACT,PI,RKAP
+C      pause
+C
+  100 X=0.D0
+      Y(1)=RINIT
+      Y(2)=ZINIT
+C
+C      WRITE(6,'(I5,1P3E12.4)') 1,X,Y(1),Y(2)
+C
+      N=1
+      XA(N)=X
+      YA(1,N)=Y(1)
+      YA(2,N)=Y(2)
+C
+      TH0=ATAN2(Y(2)-ZAXIS,Y(1)-RAXIS)
+      THACC=0.D0
+      ICROS=0
+      DLCLOSE=MAX(1.D-3,ABS(H)*5.D0)
+      DO I=2,NMAX
+         CALL EQDERV(X,Y,DYDX)
+         CALL EQRK4(X,Y,DYDX,YOUT,H,NEQ,EQDERV)
+         TH1=ATAN2(YOUT(2)-ZAXIS,YOUT(1)-RAXIS)
+         DTH=TH1-TH0
+         IF(DTH.GT.PI) DTH=DTH-2.D0*PI
+         IF(DTH.LT.-PI) DTH=DTH+2.D0*PI
+         THACC=THACC+DTH
+         TH0=TH1
+         DLRET=SQRT((YOUT(1)-RINIT)**2+(YOUT(2)-ZINIT)**2)
+         IF(DLRET.GT.5.D0*DLCLOSE) ICROS=1
+         IF(ICROS.EQ.1.AND.ABS(THACC).GE.2.D0*PI.AND.
+     &      DLRET.LE.DLCLOSE) GOTO 1000
+         X=X+H
+         Y(1)=YOUT(1)
+         Y(2)=YOUT(2)
+C
+C         WRITE(6,'(I5,1P5E12.4)') N+1,X,Y(1),Y(2),DYDX(1),DYDX(2)
+C
+         N=N+1
+         XA(N)=X
+         YA(1,N)=Y(1)
+         YA(2,N)=Y(2)
+      ENDDO
+C
+      IF(ISTEP.LE.4) THEN
+         H=FACT*H
+         ISTEP=ISTEP+1
+         GOTO 100
+      ENDIF
+      WRITE(6,*) 'XX EQMAGS: NOT ENOUGH N'
+      IERR=1
+      RETURN
+C
+ 1000 CONTINUE
+      X=X+H
+      Y(1)=YOUT(1)
+      Y(2)=YOUT(2)
+      N=N+1
+      XA(N)=X
+      YA(1,N)=Y(1)
+      YA(2,N)=Y(2)
+      IERR=0
+C
+      RETURN
+      END
+C
+C     ***** DERIVATIVES *****
+C
+      SUBROUTINE EQDERV(X,Y,DYDX)
+C
+      INCLUDE '../eq/eqcomc.inc'
+      INTEGER NPSID_WARN
+      DIMENSION Y(2),DYDX(2)
+      SAVE NPSID_WARN
+      DATA NPSID_WARN/0/
+C
+      CALL PSIGD(Y(1),Y(2),PSIRL,PSIZL)
+C
+      PSID=SQRT(PSIRL**2+PSIZL**2)
+      IF(PSID.LE.1.D-14.OR.PSID.NE.PSID) THEN
+         IF(NPSID_WARN.LT.8) THEN
+            WRITE(6,'(A,1P5E12.4)')
+     &         'XX EQDERV: small/NaN |grad psi| at R,Z,PSIR,PSIZ,PSID=',
+     &         Y(1),Y(2),PSIRL,PSIZL,PSID
+         ENDIF
+         NPSID_WARN=NPSID_WARN+1
+         DYDX(1)=0.D0
+         DYDX(2)=0.D0
+         RETURN
+      ENDIF
+C
+      DYDX(1)=-PSIZL/PSID
+      DYDX(2)= PSIRL/PSID
+C      WRITE(6,'(1P5E12.4)') X,Y(1),Y(2),DYDX(1),DYDX(2)
+      RETURN
+      END
+C
+C     ***** SETUP PSIG *****
+C
+      SUBROUTINE setup_psig
+C
+      USE libspl2d
+      INCLUDE '../eq/eqcomc.inc'
+C
+      REAL(rkind),DIMENSION(:,:),ALLOCATABLE:: PSIRG,PSIZG,PSIRZG
+C
+C     ----- calculate spline coef for psi(R,Z) -----
+C
+      ALLOCATE(PSIRG(NRGM,NZGM),PSIZG(NRGM,NZGM),PSIRZG(NRGM,NZGM))
+
+      CALL SPL2D(RG,ZG,PSIRZ,PSIRG,PSIZG,PSIRZG,UPSIRZ,
+     &           NRGM,NRGMAX,NZGMAX,0,0,IERR)
+      IF(IERR.NE.0) THEN
+         WRITE(6,*) 'XX setup_psig: SPL2D ERROR: IERR=',IERR
+         STOP
+      ENDIF
+      DEALLOCATE(PSIRG,PSIZG,PSIRZG)
+      RETURN
+      END
+C
+C     ***** calculate position of magnetic axis *****
+C
+      SUBROUTINE find_axis
+C
+      USE eqlib
+      INCLUDE '../eq/eqcomc.inc'
+      EXTERNAL PSIGD
+C
+      DELT=1.D-8
+      EPS=1.D-4
+      ILMAX=40
+      LIST=0
+      RINIT=RAXIS
+      ZINIT=ZAXIS
+      RSAVE=RAXIS
+      ZSAVE=ZAXIS
+      CALL NEWTN(PSIGD,RINIT,ZINIT,RAXIS,ZAXIS,
+     &           DELT,EPS,ILMAX,LIST,IER)
+      IF(IER.NE.0) THEN
+         WRITE(6,'(A,I5,1P2E12.4)')
+     &        'XX EQAXIS: NEWTN ERROR: IER=',IER,RSAVE,ZSAVE
+         WRITE(6,'(A)') 'XX EQAXIS: AXIS NOT FOUND:'
+         IERR=102
+         RETURN
+      ENDIF
+      RETURN
+      END
+C
+C     ***** calculate position of xpoint1 *****
+C
+      SUBROUTINE find_xpoint1
+C
+      USE eqlib
+      INCLUDE '../eq/eqcomc.inc'
+      EXTERNAL PSIGD
+C
+      DELT=1.D-8
+      EPS=1.D-4
+      ILMAX=40
+      LIST=0
+      RINIT=RXPNT1
+      ZINIT=ZXPNT1
+      RSAVE=RINIT
+      ZSAVE=ZINIT
+      CALL NEWTN(PSIGD,RINIT,ZINIT,RXPNT1,ZXPNT1,
+     &           DELT,EPS,ILMAX,LIST,IER)
+      IF(IER.NE.0) THEN
+         WRITE(6,'(A,I5,1P2E12.4)')
+     &        'XX find_xpoint1: NEWTN ERROR: IER=',IER,RSAVE,ZSAVE
+         WRITE(6,'(A)') 'XX xpint1 NOT FOUND:'
+         IERR=102
+         RETURN
+      ENDIF
+      RETURN
+      END
+C
+C     ***** calculate position of xpoint2 *****
+C
+      SUBROUTINE find_xpoint2
+C
+      USE eqlib
+      INCLUDE '../eq/eqcomc.inc'
+      EXTERNAL PSIGD
+C
+      DELT=1.D-8
+      EPS=1.D-6
+      ILMAX=40
+      LIST=0
+      RINIT=RXPNT2
+      ZINIT=ZXPNT2
+      RSAVE=RINIT
+      ZSAVE=ZINIT
+      CALL NEWTN(PSIGD,RINIT,ZINIT,RXPNT2,ZXPNT2,
+     &           DELT,EPS,ILMAX,LIST,IER)
+      IF(IER.NE.0) THEN
+         WRITE(6,'(A,I5,1P2E12.4)')
+     &        'XX find_xpoint2: NEWTN ERROR: IER=',IER,RSAVE,ZSAVE
+         WRITE(6,'(A)') 'XX xpint1 NOT FOUND:'
+         IERR=102
+         RETURN
+      ENDIF
+      RETURN
+      END
+C
+C     ***** INTEGRATE ALONG THE MAGNETIC FIELD LINE *****
+C
+      SUBROUTINE calc_separtrix(RINIT,ZINIT,RXP,ZXP,H,NMAX,
+     &                          XA,RA,ZA,NTOT,IERR)
+C
+C     ** Input **
+C       RINIT : Initial starting point for tracing
+C       ZINIT : Initial starting point for tracing
+C       RXP   : Location of xpoint
+C       ZYP   : Location o f xpoint
+C       H     : Step size
+C       NMAX  : Size of arraies of XA, YA
+C     ** Output **
+C       XA    : Length along the field line from (RINIT,ZINIT)
+C       YA    : Position of separatrix points
+C       N     : Number of positions
+C       IERR  : Error indicator
+C
+C      INCLUDE '../eq/eqcomc.inc'
+C
+      USE bpsd_kinds,ONLY: rkind
+      USE eqlib
+      IMPLICIT NONE
+      REAL(rkind),INTENT(IN):: RINIT,ZINIT,RXP,ZXP,H
+      INTEGER,INTENT(IN):: NMAX
+      REAL(rkind),INTENT(OUT)::XA(NMAX),RA(NMAX),ZA(NMAX)
+      INTEGER,INTENT(OUT):: NTOT,IERR
+
+      INTEGER,PARAMETER:: NEQ=2
+      REAL(rkind):: XA1(NMAX),YA1(2,NMAX)
+      REAL(rkind):: XA2(NMAX),YA2(2,NMAX)
+      REAL(rkind):: X,Y(2),DYDX(2),YOUT(2),DISTANCE
+      INTEGER:: N,I,N1,N2
+      EXTERNAL EQDERV
+
+      X=0.D0
+      Y(1)=RINIT
+      Y(2)=ZINIT
+      N=1
+      XA1(N)=X
+      YA1(1,N)=Y(1)
+      YA1(2,N)=Y(2)
+C
+      DO I=2,NMAX
+         CALL EQDERV(X,Y,DYDX)
+         CALL EQRK4(X,Y,DYDX,YOUT,H,NEQ,EQDERV)
+         X=X+H
+         Y(1)=YOUT(1)
+         Y(2)=YOUT(2)
+         N=N+1
+         XA1(N)=X
+         YA1(1,N)=Y(1)
+         YA1(2,N)=Y(2)
+         DISTANCE=SQRT((Y(1)-RXP)**2+(Y(2)-ZXP)**2)
+         IF(DISTANCE < 1.2D0*H) GOTO 1000
+      ENDDO
+      GOTO 9100
+
+ 1000 CONTINUE
+      N1=N+1
+      XA1(N1)=X+DISTANCE
+      YA1(1,N1)=RXP
+      YA1(2,N1)=ZXP
+
+      X=0.D0
+      Y(1)=RINIT
+      Y(2)=ZINIT
+      N=1
+      XA2(N)=X
+      YA2(1,N)=Y(1)
+      YA2(2,N)=Y(2)
+C
+      DO I=2,NMAX
+         CALL EQDERV(X,Y,DYDX)
+         CALL EQRK4(X,Y,DYDX,YOUT,-H,NEQ,EQDERV)
+         X=X-H
+         Y(1)=YOUT(1)
+         Y(2)=YOUT(2)
+         N=N+1
+         XA2(N)=X
+         YA2(1,N)=Y(1)
+         YA2(2,N)=Y(2)
+         DISTANCE=SQRT((Y(1)-RXP)**2+(Y(2)-ZXP)**2)
+         IF(DISTANCE < 1.2D0*H) GOTO 2000
+      ENDDO
+      GO TO 9200
+
+ 2000 CONTINUE
+      N2=N+1
+      XA2(N2)=X-DISTANCE
+      YA2(1,N2)=RXP
+      YA2(2,N2)=ZXP
+
+      NTOT=N1+N2-1
+      DO N=1,N2
+         XA(N)=XA2(N2-N+1)
+         RA(N)=YA2(1,N2-N+1)
+         ZA(N)=YA2(2,N2-N+1)
+      ENDDO
+      DO N=N2+1,NTOT
+         XA(N)=XA1(N-N2+1)
+         RA(N)=YA1(1,N-N2+1)
+         ZA(N)=YA1(2,N-N2+1)
+      END DO
+      IERR=0
+      RETURN
+
+ 9100 WRITE(6,*) 'XX calc_separtrix: XP not found for positive angle'
+      IERR=1
+      RETURN
+ 9200 WRITE(6,*) 'XX calc_separtrix: XP not found for negative angle'
+      IERR=1
+      RETURN
+      END
+C
+C     ***** INTERPOLATE FUNCTION OF PSI(R,Z) *****
+C
+      FUNCTION PSIG(R,Z)
+C
+      USE libspl2d
+      INCLUDE '../eq/eqcomc.inc'
+C
+      CALL SPL2DF(R,Z,PSIL,RG,ZG,UPSIRZ,NRGM,NRGMAX,NZGMAX,IERR)
+      IF(IERR.NE.0) THEN
+         WRITE(6,*) 'XX PSIG: SPL2DF ERROR: IERR=',IERR
+         WRITE(6,'(A,1P2E12.4)') '   R,Z=',R,Z
+      ENDIF
+      PSIG=PSIL
+      RETURN
+      END
+C
+C     ***** INTERPOLATE SUBROUTINE DPSIDR,DPSIDZ(R,Z) *****
+C
+      SUBROUTINE PSIGD(R,Z,DPSIDR,DPSIDZ)
+C
+      USE libspl2d
+      INCLUDE '../eq/eqcomc.inc'
+C
+      CALL SPL2DD(R,Z,PSIL,DPSIDR,DPSIDZ,
+     &            RG,ZG,UPSIRZ,NRGM,NRGMAX,NZGMAX,IERR)
+      IF(IERR.NE.0) THEN
+         WRITE(6,*) 'XX PSIGD: SPL2DD ERROR: IERR=',IERR
+         WRITE(6,'(A,1P2E12.4)') '   R,Z=',R,Z
+      ENDIF
+      RETURN
+      END
+C
+C     ***** INTERPOLATE FUNCTION OF PSI on ZAXIS *****
+C
+      FUNCTION PSIGZ0(R)
+      INCLUDE '../eq/eqcomc.inc'
+      REAL(rkind) R,PSIGZ0
+      PSIGZ0=PSIG(R,ZAXIS)
+      RETURN
+      END

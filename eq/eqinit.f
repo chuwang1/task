@@ -96,6 +96,7 @@ C
       NSMAXPL= NSMAX
 C
       IDEBUG = 0
+      IEQSNAP = 0
 C
 C     *** PROFILE PARAMETERS ***
 C
@@ -253,7 +254,7 @@ C
       NSUMAX = 65
 C
       NRVMAX = 50
-      NTVMAX = 400
+      NTVMAX = 200
 C
 C     *** CONTROL PARAMETERS ***
 C
@@ -314,6 +315,7 @@ C            1: print first and last loop
 C            2: print all loop
 C
       NPRINT= 0
+      IUSELCFS = 1
 C
 C        RGMIN: Minimum R of computation region [m]
 C        RGMAX: Maxmum  R of computation region [m]

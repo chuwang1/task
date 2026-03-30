@@ -15,12 +15,12 @@ C
         WRITE(6,*) ' ## INPUT KID : S,S1,S2,S3,SR,ST,SD,SB TR X/EXIT'
       ELSEIF(MODE.EQ.1 .OR. MODE.EQ.2) THEN
         WRITE(6,*) ' ## INPUT KID : C,C1,C2 ',
-     &                            'S,S1,S2,S3,SR,ST,SD,SB TR M A X/EXIT'
+     &                         'S,S1,S2,S3,SE,SR,ST,SD,SB TR M A X/EXIT'
       ELSEIF(MODE.EQ.3) THEN
         WRITE(6,*) ' ## INPUT KID : C,C1,C2 ',
-     &                         'S,S1,S2,S3,SP,SR,ST,SD,SB TR M A X/EXIT'
+     &                      'S,S1,S2,S3,SE,SP,SR,ST,SD,SB TR M A X/EXIT'
       ELSEIF(MODE.EQ.-1) THEN
-        WRITE(6,*) ' ## INPUT KID : C,C1,C2 X/EXIT'
+        WRITE(6,*) ' ## INPUT KID : C,C1,C2,CE X/EXIT'
       ELSE
         WRITE(6,*) ' ## INPUT KID : S,S1,S2,S3,SR,ST,SD,SB TR X/EXIT'
       ENDIF
@@ -30,14 +30,18 @@ C
       CALL toupper(K1)
       CALL toupper(K2)
       IF(K1.EQ.'C') THEN
-         IF(MODE.EQ.1) THEN
+         IF(MODE.EQ.1 .OR. MODE.EQ.2) THEN
             IF(K2.EQ.' ') THEN
-               CALL EQGC2D
-               CALL EQGC1D
+               IF(MODE.EQ.1) THEN
+                  CALL EQGC2D
+                  CALL EQGC1D
+               ENDIF
             ELSEIF(K2.EQ.'1') THEN
-               CALL EQGC1D
+               IF(MODE.EQ.1) CALL EQGC1D
             ELSEIF(K2.EQ.'2') THEN
-               CALL EQGC2D
+               IF(MODE.EQ.1) CALL EQGC2D
+            ELSEIF(K2.EQ.'E') THEN
+               CALL EQGS2D_EXPORT
             ENDIF
          ELSE
             WRITE(6,*) 'XX: EQGOUT: NO DATA CREATED!'
@@ -63,6 +67,8 @@ C
                CALL EQGSBB
             ELSEIF(K2.EQ.'P') THEN
                IF(MODE.EQ.3) CALL EQGSRP
+            ELSEIF(K2.EQ.'E') THEN
+               CALL EQGS1D_EXPORT
             ENDIF
          ELSE
             WRITE(6,*) 'XX: EQGOUT: NO EQCALQ DATA CREATED!'

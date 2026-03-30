@@ -4,7 +4,8 @@
 !=======================================================================
       module equnit
       use eqbpsd
-      public eq_init,eq_parm,eq_prof,eq_calc,eq_load,eq_gout
+      public eq_init,eq_parm,eq_set_runtime,eq_prof,eq_calc,eq_load,
+     &       eq_gout
       private
       contains
 !=======================================================================
@@ -27,6 +28,36 @@
       call eqparm(mode,kin,ierr)
       return
       end subroutine eq_parm
+!=======================================================================
+!            set runtime parameters directly (without namelist parsing)
+!-----------------------------------------------------------------------
+      subroutine eq_set_runtime(nrmax_in,nthmax_in,nsumax_in,
+     &                          knameq2_in,ierr)
+
+      INCLUDE '../eq/eqcomm.inc'
+      INTEGER nrmax_in,nthmax_in,nsumax_in,ierr
+      CHARACTER*(*) knameq2_in
+      EXTERNAL EQCHEK
+
+      NRMAX = nrmax_in
+      NTHMAX = nthmax_in
+      NSUMAX = nsumax_in
+
+      IF(LEN_TRIM(knameq2_in).GT.0) THEN
+         KNAMEQ2 = knameq2_in
+      ENDIF
+
+      CALL EQCHEK(ierr)
+      IF(ierr.NE.0) THEN
+         WRITE(6,*) 'XX eq_set_runtime: eqchek: ierr=',ierr
+         RETURN
+      ENDIF
+
+      WRITE(6,'(A,I6,A,I6,A,I6)') '## EQ RUNTIME SET: nrmax=',NRMAX,
+     &     ' nthmax=',NTHMAX,' nsumax=',NSUMAX
+      ierr=0
+      RETURN
+      END SUBROUTINE eq_set_runtime
 !=======================================================================
 !            setup  profile
 !-----------------------------------------------------------------------

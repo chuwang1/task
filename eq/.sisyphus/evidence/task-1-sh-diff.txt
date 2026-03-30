@@ -1,0 +1,36 @@
+DIFF: rebuild_f.sh changes
+==========================
+
+CHANGE 1: Added --use-gfile-qp flag to rebuild_f_from_q_eqdata.py invocation
+---
+OLD (lines 4-7):
+conda run -n Fusion python3 in/rebuild_f_from_q_eqdata.py \
+  --prefix eqdata_modelg5_rebuild_mdleqf9_qmap_samegeom \
+  --method eqipqp \
+  --out-prefix in/eqdata_modelg5_rebuild_mdleqf9_qmap_samegeom_f_from_q_eqipqp_stable
+
+NEW (lines 4-8):
+conda run -n Fusion python3 in/rebuild_f_from_q_eqdata.py \
+  --prefix eqdata_modelg5_rebuild_mdleqf9_qmap_samegeom \
+  --method eqipqp \
+  --use-gfile-qp \
+  --out-prefix in/eqdata_modelg5_rebuild_mdleqf9_qmap_samegeom_f_from_q_eqipqp_stable
+
+CHANGE 2: Added --rebuild-csv argument to plot_eqipqp_all_variables_big.py invocation
+---
+OLD (lines 8-10):
+conda run -n Fusion python3 in/plot_eqipqp_all_variables_big.py \
+  --prefix eqdata_modelg5_rebuild_mdleqf9_qmap \
+  --out in/eqdata_modelg5_rebuild_mdleqf9_qmap_eqipqp_all_variables_big.png
+
+NEW (lines 9-12):
+conda run -n Fusion python3 in/plot_eqipqp_all_variables_big.py \
+  --prefix eqdata_modelg5_rebuild_mdleqf9_qmap \
+  --rebuild-csv in/eqdata_modelg5_rebuild_mdleqf9_qmap_samegeom_f_from_q_eqipqp_stable.csv \
+  --out in/eqdata_modelg5_rebuild_mdleqf9_qmap_eqipqp_all_variables_big.png
+
+VERIFICATION:
+✓ --use-gfile-qp added to rebuild command
+✓ --rebuild-csv pointing to correct output CSV from rebuild step
+✓ No other lines modified
+✓ File syntax preserved (backslashes for line continuation)
