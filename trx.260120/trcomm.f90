@@ -46,7 +46,7 @@ MODULE trcomm_parm
   
   ! === configuration parameters ===
 
-  INTEGER:: NTEQIT
+  INTEGER:: NTEQIT, EQRELOAD
 
   ! === plasma parameters ===
 

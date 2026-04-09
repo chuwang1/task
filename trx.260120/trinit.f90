@@ -31,6 +31,7 @@ CONTAINS
 
       MODELG=2
       NTEQIT=0
+      EQRELOAD=0
 
       !  ==== DEVICE PARAMETERS for MODELG=2 ====
 

@@ -68,6 +68,15 @@ CONTAINS
 
 !     *** SET GEOMETRY VIA TASK/EQ ***
 
+      IF(MODELG.EQ.5 .AND. EQRELOAD.EQ.1) THEN
+         CALL eq_load(MODELG,KNAMEQ,IERR)
+         IF(IERR.NE.0) THEN
+            WRITE(6,*) 'XX eq_load(reload): ierr=',ierr,' knameq=',TRIM(KNAMEQ)
+            RETURN
+         ENDIF
+         EQRELOAD=0
+      ENDIF
+
       IF(NTEQIT.NE.0) THEN
          IF(MOD(NT,NTEQIT).EQ.0) THEN
             if(modelg.eq.8) THEN

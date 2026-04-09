@@ -30,7 +30,7 @@ def read_tr_csv(path):
 
 
 def main():
-    tr_csv = find_csv_by_title('PRSUM,PRB,PRC,PRL,PCX,PIE')
+    tr_csv = find_csv_by_title('PRSUM,PRB,PRC,PRL,PCX,PIE,QEI')
     if tr_csv is None:
         raise FileNotFoundError('Could not find TR CSV containing PRSUM/PRB/PRC/PRL/PCX/PIE')
 

@@ -32,7 +32,7 @@ MODULE trparm
        MDLCD,PBSCD, &
        MDLPR,SYNCABS,SYNCSELF, &
        MDLEDGE,CSPRS, &
-       MODELG,NTEQIT,MODEP,MDLJQ,MDLFLX, &
+       MODELG,NTEQIT,EQRELOAD,MODEP,MDLJQ,MDLFLX, &
        MDLNI, &
        MDLEQB,MDLEQN,MDLEQT,MDLEQU,MDLEQZ,MDLEQ0,MDLEQE,MDLEOI, &
        MDLER,MDLNCL,NSLMAX, &
@@ -141,7 +141,7 @@ CONTAINS
              ' ',8X,'PELTIM,PELPAT'/ &
              ' ',8X,'pellet_time_start,pellet_time_interval'/ &
              ' ',8X,'number_of_pellet_repeat'/ &
-             ' ',8X,'MDLPR,SYNCABS,SYNCSELF,MODELG,NTEQIT'/&
+             ' ',8X,'MDLPR,SYNCABS,SYNCSELF,MODELG,NTEQIT,EQRELOAD'/&
              ' ',8X,'MDEDGE,MDLIMP,model_prof,knam_prof,'/ &
              ' ',8X,'MDLXP,MDLUF,MDLNCL,MDLWLD,MDLFLX,MDLER,MDCD05'/ &
              ' ',8X,'MDLEQB,MDLEQN,MDLEQT,MDLEQU,MDLEQZ,MDLEQ0'/ &
