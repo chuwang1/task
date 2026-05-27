@@ -64,10 +64,12 @@ MODULE trcomm_parm
   REAL(rkind):: ALP(7)
   INTEGER:: model_nfixed,model_tfixed
   INTEGER:: model_nevolve  ! 0: density evolves normally, 1: density fixed from profile
-  INTEGER:: model_prlfixed ! 0: use calculated PRL, 1: read PRL from CSV file
+  INTEGER:: model_prlfixed ! 0: use calculated PRL, 1: add extra PRL from CSV file
+  INTEGER:: model_anar_ext ! 0: use PNAR/MDLIMP, 1: read Ar density from CSV file
   INTEGER:: model_chifixed ! 0: use calculated chi, 1/2/3: read chi from file
   CHARACTER(LEN=128):: knam_nfixed,knam_tfixed
-  CHARACTER(LEN=128):: knam_prlfixed ! PRL profile file name (CSV format)
+  CHARACTER(LEN=128):: knam_prlfixed ! supplemental PRL profile file name (CSV format)
+  CHARACTER(LEN=128):: knam_anar_ext ! Ar density profile file name (CSV format)
   CHARACTER(LEN=128):: knam_chifixed ! chi profile file name
   REAL(rkind):: chifixed_factor
   INTEGER:: model_chimix ! 0:off, 1:edge mix, 2:core+edge dual mix with ext chi
@@ -324,7 +326,7 @@ MODULE trcomm
   REAL(rkind), DIMENSION(:,:), ALLOCATABLE :: & ! (NRM,NFM)
        RNF, RTF
   REAL(rkind), DIMENSION(:)  , ALLOCATABLE :: & ! (NRM)
-       ANC, ANFE, ANAR, ANNU, ZEFF, PZC, PZFE, BETA, BETAP, BETAL, BETAPL, &
+       ANC, ANFE, ANAR, ANNU, ZEFF, PZC, PZFE, PZAR, BETA, BETAP, BETAL, BETAPL, &
        BETAQ, PBM, PADD, VTOR, VPAR, VPRP, VPOL, WROT, ER, VEXB, WEXB, AGMP, &
        VEXBP, WEXBP, AKEXT_E, AKEXT_I
   REAL(rkind), DIMENSION(:)  , ALLOCATABLE :: CHIMIXW
@@ -597,7 +599,7 @@ MODULE trcomm
 
     ALLOCATE(ANC(NRMAX),ANFE(NRMAX),ANAR(NRMAX),ANNU(NRMAX),ZEFF(NRMAX),STAT=IERR)
       IF(IERR.NE.0) GOTO 900
-    ALLOCATE(PZC(NRMAX),PZFE(NRMAX),BETA(NRMAX),BETAP(NRMAX),STAT=IERR)
+    ALLOCATE(PZC(NRMAX),PZFE(NRMAX),PZAR(NRMAX),BETA(NRMAX),BETAP(NRMAX),STAT=IERR)
       IF(IERR.NE.0) GOTO 900
     ALLOCATE(BETAL(NRMAX),BETAPL(NRMAX),BETAQ(NRMAX),PBM(NRMAX),STAT=IERR)
       IF(IERR.NE.0) GOTO 900
@@ -830,7 +832,7 @@ MODULE trcomm
     DEALLOCATE(PNSS)
     DEALLOCATE(XV,YV, AY, Y,ZV, AZ, Z,AX,X)
     DEALLOCATE(RG,RM,RHOM,RHOG,BP,RDP,RPSI,RN,RT,RU,RW)
-    DEALLOCATE(RNF,RTF,ANC,ANFE,ANAR,ANNU,ZEFF,PZC,PZFE,BETA,BETAP,BETAL,BETAPL)
+    DEALLOCATE(RNF,RTF,ANC,ANFE,ANAR,ANNU,ZEFF,PZC,PZFE,PZAR,BETA,BETAP,BETAL,BETAPL)
     DEALLOCATE(BETAQ,PBM,PADD,VTOR,VPAR,VPRP,VPOL,WROT,ER,VEXB,WEXB,AGMP)
     DEALLOCATE(VEXBP,WEXBP,AKEXT_E,AKEXT_I)
     DEALLOCATE(AJ,AJOH, EZOH,QP,AJTOR,AJNB,AJRF,AJBS,QPINV)
@@ -905,6 +907,7 @@ MODULE trcomm
     IF(ALLOCATED(ZEFF     ))     DEALLOCATE(ZEFF     )
     IF(ALLOCATED(PZC      ))     DEALLOCATE(PZC      )
     IF(ALLOCATED(PZFE     ))     DEALLOCATE(PZFE     )
+    IF(ALLOCATED(PZAR     ))     DEALLOCATE(PZAR     )
     IF(ALLOCATED(BETA     ))     DEALLOCATE(BETA     )
     IF(ALLOCATED(BETAP    ))     DEALLOCATE(BETAP    )
     IF(ALLOCATED(BETAL    ))     DEALLOCATE(BETAL    )

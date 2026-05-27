@@ -188,6 +188,8 @@
      &' ','  PNC    : CARBON DENSITY FACTOR'/                           &
      &' ','  PNFE   : IRON DENSITY FACTOR'/                             &
      &' ','  PNAR   : ARGON DENSITY FACTOR'/                            &
+     &' ','  model_anar_ext: 1 READ ARGON DENSITY FROM knam_anar_ext'/  &
+     &' ','  model_prlfixed: 1 ADD EXTRA PRL FROM knam_prlfixed'/       &
      &' ','              COMPARED WITH ITER PHYSICS DESIGN GUIDELINE'/  &
      &' ','  PNNU   : NEUTRAL NUMBER DENSITY ON AXIS (1.E20 M**-3)'/    &
      &' ','  PNNUS  :                        ON SURFACE (1.E20 M**-3)'/ &

@@ -9,16 +9,19 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
-BASE = "/Users/dengxiaoya/TASK/CFEDR/git/task/trx.260120"
+BASE = os.path.dirname(os.path.abspath(__file__))
 CHI_FILE = os.path.join(BASE, "chi_div_grad2_drdrho.dat")
 
 
 def find_csv_by_title(title_keyword):
+    matched = []
     for f in sorted(glob.glob(os.path.join(BASE, "tr_data_*.csv"))):
         with open(f, "r") as fh:
             title = fh.readline().strip()
         if title_keyword in title:
-            return f, title
+            matched.append((f, title))
+    if matched:
+        return matched[-1]
     return None, None
 
 

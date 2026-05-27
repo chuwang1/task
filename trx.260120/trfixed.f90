@@ -281,9 +281,9 @@ CONTAINS
   END SUBROUTINE tr_prep_tfixed
   
 ! ============================================================
-!  Read PRL profile (line radiation) from external CSV file
+!  Read supplemental PRL profile (extra line radiation) from external CSV file
 !  File format: CSV with header line
-!  Columns: r/a, prl [MW/m^3]
+!  Columns: r/a, prl_extra [MW/m^3]
 ! ============================================================
   SUBROUTINE tr_prep_prlfixed
     USE trcomm
@@ -308,7 +308,7 @@ CONTAINS
     ! Skip header line
     READ(NFL,'(A)',IOSTAT=ios) line
 
-    ! Read data: r/a, prl [MW/m^3]
+    ! Read data: r/a, supplemental prl [MW/m^3]
     ndata_csv=0
     DO i=1,NMAX_CSV
        READ(NFL,*,IOSTAT=ios) rho_csv(i),prl_csv(i)
@@ -323,7 +323,8 @@ CONTAINS
        RETURN
     END IF
 
-    WRITE(6,'(A,I5,A)') '## tr_prep_prlfixed: read ',ndata_csv,' points from '//TRIM(knam_prlfixed)
+    WRITE(6,'(A,I5,A)') '## tr_prep_prlfixed: read supplemental PRL ',ndata_csv, &
+         ' points from '//TRIM(knam_prlfixed)
 
     ! Interpolate to TR grid and store in PRL_ext
     ! CSV is in MW/m^3, internal PRL is in W/m^3 -> multiply by 1.D6
@@ -344,7 +345,7 @@ CONTAINS
        END IF
     END DO
 
-    WRITE(6,'(A,2ES12.4)') '## tr_prep_prlfixed: PRL_ext range = ', &
+    WRITE(6,'(A,2ES12.4)') '## tr_prep_prlfixed: supplemental PRL_ext range = ', &
          MINVAL(PRL_ext(1:NRMAX)),MAXVAL(PRL_ext(1:NRMAX))
 
     RETURN

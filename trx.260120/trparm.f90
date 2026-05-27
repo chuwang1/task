@@ -39,6 +39,7 @@ MODULE trparm
        MDLELM,ELMWID,ELMDUR,ELMNRD,ELMTRD,ELMENH, &
        MDLTC,MDLPCK,model_nfixed,model_tfixed,model_nevolve, &
        model_prlfixed,knam_prlfixed, &
+       model_anar_ext,knam_anar_ext, &
        model_chifixed,chifixed_factor,model_chimix,rho_chimix_switch,rho_chimix_width,rho_chimix_core,rho_chimix_core_width, &
        SIGMAV_SCALE_FACTOR, HY_CORRECTION_FACTOR, model_cdbm_smooth, &
        C_SCALING,ALPHA_RELAX,H_FACTOR_USER,C_SCALING_MIN,C_SCALING_MAX, &
@@ -149,9 +150,9 @@ CONTAINS
              ' ',8X,'TIME_INT,MODEP,MDNI,MDLJQ,MDLTC,MDLPCK'/ &
              ' ',8X,'KNAMEQ,KNAMEQ2,KNAMEQWRAP,KNAMEQSNAP,KNAMEQNEW,KNAMTR,KFNLOG,KFNTXT,KFNCVS,'/ &
              ' ',8X,'MDLPSC,NPSCMAX,PSCIN,PSCR0,PSCRW,NSPSC,PSCIN_MAX,'/ &
-             ' ',8X,'knam_nfixed,knam_tfixed,knam_prlfixed,knam_chifixed'/ &
+             ' ',8X,'knam_nfixed,knam_tfixed,knam_prlfixed,knam_anar_ext,knam_chifixed'/ &
              ' ',8X,'model_nfixed,model_tfixed,model_nevolve,'/ &
-             ' ',8X,'model_prlfixed,model_chifixed,chifixed_factor,'/ &
+             ' ',8X,'model_prlfixed,model_anar_ext,model_chifixed,chifixed_factor,'/ &
              ' ',8X,'model_chimix,rho_chimix_switch,rho_chimix_width,'/ &
              ' ',8X,'SIGMAV_SCALE_FACTOR,model_cdbm_smooth,'/ &
              ' ',8X,'C_SCALING,ALPHA_RELAX,H_FACTOR_USER,'/ &

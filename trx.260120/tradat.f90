@@ -10,18 +10,19 @@
       USE TRCOMM
       IMPLICIT NONE
       INTEGER:: NR,NS
-      REAL(rkind)   :: TE,TRZEC,TRZEFE,RNE
+      REAL(rkind)   :: TE,TRZEC,TRZEFE,TRZEAR,RNE
 
       DO NR=1,NRMAX
          TE=RT(NR,1)
          PZC(NR)=TRZEC(TE)
          PZFE(NR)=TRZEFE(TE)
+         PZAR(NR)=TRZEAR(TE)
       ENDDO
 
          SELECT CASE(MDLIMP)
          CASE(3,4)
             DO NR=1,NRMAX
-               RNE=PZC(NR)*ANC (NR)+PZFE(NR)*ANFE(NR)
+               RNE=PZC(NR)*ANC (NR)+PZFE(NR)*ANFE(NR)+PZAR(NR)*ANAR(NR)
                DO NS=2,NSMAX
                   RNE=RNE+PZ(NS)*RN(NR,NS)
                END DO
@@ -34,7 +35,8 @@
             END DO
             ZEFF(NR)=ZEFF(NR) &
                     +PZC(NR)**2 *ANC (NR) &
-                    +PZFE(NR)**2*ANFE(NR)
+                    +PZFE(NR)**2*ANFE(NR) &
+                    +PZAR(NR)**2*ANAR(NR)
             ZEFF(NR)=ZEFF(NR)/RN(NR,1)
          ENDDO
 
@@ -138,6 +140,53 @@
       END IF
       RETURN
       END FUNCTION TRZEFE
+
+!     ***********************************************************
+
+!           CALCULATE Z-Ar
+
+!     ***********************************************************
+
+      FUNCTION TRZEAR(TE)
+
+      USE TRCOMM,ONLY: rkind
+      IMPLICIT NONE
+      REAL(rkind):: TE, TEL, TRZEAR
+      REAL(rkind):: BA10=-6.35188D+01, BA11=-4.14519D+02, BA12=-8.50220D+02, &
+                BA13=-8.07478D+02, BA14=-3.62126D+02, BA15=-6.18783D+01
+      REAL(rkind):: BA20= 1.59107D+01, BA21=-7.88677D-01, BA22= 2.87454D+00, &
+                BA23= 3.36119D+01, BA24=-3.30689D+01, BA25=-7.16260D+01
+      REAL(rkind):: BA30= 1.29638D+01, BA31= 1.83325D+01, BA32=-2.83480D+01, &
+                BA33= 2.26716D+01, BA34=-9.21974D+00, BA35= 1.50713D+00
+      REAL(rkind):: BA40=-7.89001D+01, BA41= 2.93992D+02, BA42=-3.55108D+02, &
+                BA43= 2.13368D+02, BA44=-6.37657D+01, BA45= 7.58257D+00
+
+      IF(TE.LE.0.D0) THEN
+         TRZEAR=0.D0
+      ELSE
+         TEL = LOG10(TE)
+         IF(TE.LE.3.D-2) THEN
+            TEL=LOG10(3.D-2)
+            TRZEAR = BA10+(BA11*TEL)+(BA12*TEL**2)+(BA13*TEL**3) &
+                         +(BA14*TEL**4)+(BA15*TEL**5)
+         ELSEIF(TE.LE.2.D-1) THEN
+            TRZEAR = BA10+(BA11*TEL)+(BA12*TEL**2)+(BA13*TEL**3) &
+                         +(BA14*TEL**4)+(BA15*TEL**5)
+         ELSEIF(TE.LE.2.D0) THEN
+            TRZEAR = BA20+(BA21*TEL)+(BA22*TEL**2)+(BA23*TEL**3) &
+                         +(BA24*TEL**4)+(BA25*TEL**5)
+         ELSEIF(TE.LE.20.D0) THEN
+            TRZEAR = BA30+(BA31*TEL)+(BA32*TEL**2)+(BA33*TEL**3) &
+                         +(BA34*TEL**4)+(BA35*TEL**5)
+         ELSEIF(TE.LE.100.D0) THEN
+            TRZEAR = BA40+(BA41*TEL)+(BA42*TEL**2)+(BA43*TEL**3) &
+                         +(BA44*TEL**4)+(BA45*TEL**5)
+         ELSE
+            TRZEAR = 18.D0
+         END IF
+      END IF
+      RETURN
+      END FUNCTION TRZEAR
 
 !     ***********************************************************
 
@@ -324,9 +373,9 @@
             PLC   = ANE*ANC (NR)*TRRPC (TE)*1.D40
             PLAR  = ANE*ANAR(NR)*TRRPAR(TE)*1.D40
             PRL(NR)=PLFE+PLC+PLAR
-!     Override PRL with external line radiation if model_prlfixed=1
+!     Add external supplemental line radiation if model_prlfixed=1
             IF(model_prlfixed.EQ.1) THEN
-               PRL(NR)=PRL_ext(NR)
+               PRL(NR)=PRL(NR)+PRL_ext(NR)
             END IF
 !     Bremsstrahlung
             IF(NSMAX.GE.2) THEN

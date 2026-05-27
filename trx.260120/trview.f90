@@ -78,6 +78,14 @@ CONTAINS
          WRITE(6,602) 'MDLIMP',MDLIMP
          WRITE(6,601) 'PNC   ',PNC,   'PNFE  ',PNFE, 'PNAR  ',PNAR
       END IF
+      IF(model_anar_ext.GT.0) THEN
+         WRITE(6,602) 'model_anar_ext',model_anar_ext
+         WRITE(6,'(A,A)') 'knam_anar_ext ',knam_anar_ext
+      END IF
+      IF(model_prlfixed.GT.0) THEN
+         WRITE(6,602) 'model_prlfixed',model_prlfixed
+         WRITE(6,'(A,A)') 'knam_prlfixed ',knam_prlfixed
+      END IF
 !         WRITE(6,601) 'PNNU  ',PNNU,  'PNNUS ',PNNUS
 
          DO NNB=1,NNBMAX

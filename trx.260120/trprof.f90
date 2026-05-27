@@ -404,6 +404,8 @@ CONTAINS
          ANAR(1:NRMAX)=PNAR*RN(1:NRMAX,1)
       END SELECT
 
+      IF(model_anar_ext.EQ.1) CALL tr_load_anar_ext
+
 !     *** CALCULATE PZC,PZFE ***
 
       DO NR=1,NRMAX
@@ -437,6 +439,84 @@ CONTAINS
       CALL TRZEFF
 
     END SUBROUTINE tr_prof_impurity
+
+!     ***********************************************************
+!           LOAD EXTERNAL ARGON DENSITY PROFILE
+!     ***********************************************************
+
+    SUBROUTINE tr_load_anar_ext
+
+      USE trcomm
+      USE libfio
+      IMPLICIT NONE
+      INTEGER,PARAMETER:: NMAX_CSV=20000
+      INTEGER:: nfl, nr, i, j, ierr, ios, ndata_csv, ncomma
+      REAL(rkind):: rho_csv(NMAX_CSV), anar_csv(NMAX_CSV)
+      REAL(rkind):: rho, frac, d1, d2, d3, d4, d5, d6, d7
+      CHARACTER(LEN=512):: line, header
+
+      NFL=17
+      CALL fropen(NFL,knam_anar_ext,1,0,'anar',ierr)
+      IF(ierr.NE.0) THEN
+         WRITE(6,'(A)') 'XX tr_load_anar_ext: cannot open file '//TRIM(knam_anar_ext)
+         STOP
+      END IF
+
+      READ(NFL,'(A)',IOSTAT=ios) header
+      IF(ios.NE.0) THEN
+         WRITE(6,'(A)') 'XX tr_load_anar_ext: empty file '//TRIM(knam_anar_ext)
+         STOP
+      END IF
+
+      ncomma=0
+      DO i=1,LEN_TRIM(header)
+         IF(header(i:i).EQ.',') ncomma=ncomma+1
+      END DO
+
+      ndata_csv=0
+      DO i=1,NMAX_CSV
+         READ(NFL,'(A)',IOSTAT=ios) line
+         IF(ios.NE.0) EXIT
+         IF(LEN_TRIM(line).EQ.0) CYCLE
+         IF(ncomma.GE.8) THEN
+            READ(line,*,IOSTAT=ios) rho_csv(i),d1,d2,d3,d4,d5,d6,d7,anar_csv(i)
+         ELSE
+            READ(line,*,IOSTAT=ios) rho_csv(i),anar_csv(i)
+         END IF
+         IF(ios.NE.0) THEN
+            WRITE(6,'(A,I8)') 'XX tr_load_anar_ext: data read error at line ',i+1
+            STOP
+         END IF
+         ndata_csv=i
+      END DO
+      CLOSE(NFL)
+
+      IF(ndata_csv.LT.2) THEN
+         WRITE(6,'(A)') 'XX tr_load_anar_ext: insufficient data in file '//TRIM(knam_anar_ext)
+         STOP
+      END IF
+
+      DO nr=1,NRMAX
+         rho=RM(nr)
+         IF(rho.LE.rho_csv(1)) THEN
+            ANAR(nr)=anar_csv(1)
+         ELSEIF(rho.GE.rho_csv(ndata_csv)) THEN
+            ANAR(nr)=anar_csv(ndata_csv)
+         ELSE
+            DO j=1,ndata_csv-1
+               IF(rho.GE.rho_csv(j).AND.rho.LT.rho_csv(j+1)) THEN
+                  frac=(rho-rho_csv(j))/(rho_csv(j+1)-rho_csv(j))
+                  ANAR(nr)=(1.D0-frac)*anar_csv(j)+frac*anar_csv(j+1)
+                  EXIT
+               END IF
+            END DO
+         END IF
+      END DO
+
+      WRITE(6,'(A,I6,A,2ES12.4)') '## tr_load_anar_ext: read ',ndata_csv, &
+           ' points, ANAR range = ',MINVAL(ANAR(1:NRMAX)),MAXVAL(ANAR(1:NRMAX))
+
+    END SUBROUTINE tr_load_anar_ext
 
 !     *** CALCULATE PROFILE OF AJ(R) ***
 

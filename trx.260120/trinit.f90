@@ -198,11 +198,18 @@ CONTAINS
       knam_nfixed='nprof_coef_data'
       knam_tfixed='tprof_coef_data'
 
-      !  model_prlfixed: line radiation from external file
+      !  model_prlfixed: supplemental line radiation from external file
       !       0 : use calculated PRL (PLFE+PLC+PLAR)
-      !       1 : read PRL from CSV file (knam_prlfixed), override PRL
+      !       1 : read extra PRL from CSV file (knam_prlfixed), add to PRL
       model_prlfixed=0
-      knam_prlfixed='omfit_prl_for_tr.csv'
+      knam_prlfixed='PyMak/data/PRL_w.csv'
+
+      !  model_anar_ext: argon impurity density from external file
+      !       0 : use MDLIMP/PNAR argon density
+      !       1 : read argon density from CSV file (knam_anar_ext)
+      !  CSV may be either rho,nAr or the OMFIT density file with nAr in column 9.
+      model_anar_ext=0
+      knam_anar_ext='PyMak/data/density_from_omfit.csv'
 
       !  model_chifixed: chi from external file
       !       0 : use calculated chi from transport model
