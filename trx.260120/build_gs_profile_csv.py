@@ -38,10 +38,30 @@ def build_total_pressure_pa() -> tuple[np.ndarray, np.ndarray]:
     return rho, p_total
 
 
+def build_total_pressure_from_snapshot(snapshot_csv: Path) -> tuple[np.ndarray, np.ndarray]:
+    df = pd.read_csv(snapshot_csv)
+    rho = df["rho"].to_numpy(float)
+    p_total = (
+        df["nE"] * df["TE"]
+        + df["nD"] * df["TD"]
+        + df["nT"] * df["TT"]
+        + df["nA"] * df["TA"]
+        + df["NF"] * df["TF"]
+    ).to_numpy(float) * 1e20 * RKEV
+    return rho, p_total
+
+
 def build_ttrho_f() -> tuple[np.ndarray, np.ndarray]:
     ftr = read_tr_csv(BASE_DIR / "tr_data_168.csv")
     rho = ftr["X"].to_numpy(float)
     f_rho = -ftr["TTRHO"].to_numpy(float)
+    return rho, f_rho
+
+
+def build_ttrho_f_from_snapshot(snapshot_csv: Path) -> tuple[np.ndarray, np.ndarray]:
+    df = pd.read_csv(snapshot_csv)
+    rho = df["rho"].to_numpy(float)
+    f_rho = -df["TTRHO"].to_numpy(float)
     return rho, f_rho
 
 
@@ -60,7 +80,9 @@ def main() -> None:
         default="gfile",
         help="F source",
     )
+    parser.add_argument("--snapshot-csv", help="Runtime snapshot CSV from TR")
     parser.add_argument("--output", required=True, help="Output CSV path")
+    parser.add_argument("--debug", action="store_true", help="Print debug output")
     args = parser.parse_args()
 
     g = read_gfile(args.gfile)
@@ -69,7 +91,10 @@ def main() -> None:
     if args.pressure_mode == "gfile":
         p_pa = np.asarray(g.pres, dtype=float)
     else:
-        rho_p, p_total = build_total_pressure_pa()
+        if args.snapshot_csv:
+            rho_p, p_total = build_total_pressure_from_snapshot(Path(args.snapshot_csv))
+        else:
+            rho_p, p_total = build_total_pressure_pa()
         rho_g = rho_from_qpsi(g.qpsi, g.psimag, g.psibdy)
         p_pa = np.interp(rho_g, rho_p, p_total)
 
@@ -77,7 +102,10 @@ def main() -> None:
         f_tesla_meter = np.asarray(g.fpol, dtype=float)
         ffprime = np.asarray(g.ffprime, dtype=float)
     else:
-        rho_f, f_rho = build_ttrho_f()
+        if args.snapshot_csv:
+            rho_f, f_rho = build_ttrho_f_from_snapshot(Path(args.snapshot_csv))
+        else:
+            rho_f, f_rho = build_ttrho_f()
         rho_g = rho_from_qpsi(g.qpsi, g.psimag, g.psibdy)
         f_tesla_meter = np.interp(rho_g, rho_f, f_rho)
         ffprime = f_tesla_meter * np.gradient(f_tesla_meter, psi_wb)
@@ -93,7 +121,8 @@ def main() -> None:
     )
     out_path = Path(args.output)
     out.to_csv(out_path, index=False)
-    print(out_path)
+    if args.debug:
+        print(out_path)
 
 
 if __name__ == "__main__":

@@ -314,6 +314,27 @@ CONTAINS
       PVOLRHOG(1:nrmax)=tempx(2:nrmax+1,15) ! Plasma volume
       PSURRHOG(1:nrmax)=tempx(2:nrmax+1,16) ! Plasma surface
 
+      open(99,file='eqbpsd_metric1d_latest.csv',status='replace')
+      write(99,'(A)') 'rho,pvol,psur,aveb,dvpsit,dvpsip,aver2,aver2i,avegr,avegr2,avegrr2,rr,rs,elip'
+      do nr=1,nrmax+1
+         write(99,'(13(1PE20.10,A),1PE20.10)') &
+              metric1D%rho(nr), ',', &
+              tempx(nr,15), ',', &
+              tempx(nr,16), ',', &
+              tempx(nr,17), ',', &
+              metric1D%data(nr)%dvpsit, ',', &
+              metric1D%data(nr)%dvpsip, ',', &
+              metric1D%data(nr)%aver2, ',', &
+              metric1D%data(nr)%aver2i, ',', &
+              metric1D%data(nr)%avegr, ',', &
+              metric1D%data(nr)%avegr2, ',', &
+              metric1D%data(nr)%avegrr2, ',', &
+              metric1D%data(nr)%rr, ',', &
+              metric1D%data(nr)%rs, ',', &
+              metric1D%data(nr)%elip
+      end do
+      close(99)
+
       do nr=1,nrmax
 !         RDP(nr)=TTRHOG(nr)*ARRHOG(nr)*DVRHOG(nr)/(4.D0*PI**2*QP(nr))
          RDP(nr)=DVRHOG(nr)*RDPVRHOG(nr)

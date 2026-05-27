@@ -637,13 +637,13 @@
       PetscScalar,pointer:: x_value(:)
       INTEGER:: ierr
 
-      call VecGetArrayF90(x,x_value,ierr)
+      call VecGetArray(x,x_value,ierr)
       IF(ierr.NE.0) WRITE(6,*) &
-           'XX mtx_get_vector: VecGetArrayF90: ierr=',ierr
+           'XX mtx_get_vector: VecGetArray: ierr=',ierr
       v=x_value(j-Istart)
-      call VecRestoreArrayF90(x,x_value,ierr)
+      call VecRestoreArray(x,x_value,ierr)
       IF(ierr.NE.0) WRITE(6,*) &
-           'XX mtx_get_vector: VecRestoreArrayF90: ierr=',ierr
+           'XX mtx_get_vector: VecRestoreArray: ierr=',ierr
 
       RETURN
       END SUBROUTINE mtx_get_vector_j
@@ -654,15 +654,15 @@
       PetscScalar,pointer:: x_value(:)
       INTEGER:: j,ierr
 
-      call VecGetArrayF90(x,x_value,ierr)
+      call VecGetArray(x,x_value,ierr)
       IF(ierr.NE.0) WRITE(6,*) &
-           'XX mtx_gather_vector: VecGetArrayF90: ierr=',ierr
+           'XX mtx_gather_vector: VecGetArray: ierr=',ierr
       do j=1,irange
          v(j)=x_value(j)
       enddo
-      call VecRestoreArrayF90(x,x_value,ierr)
+      call VecRestoreArray(x,x_value,ierr)
       IF(ierr.NE.0) WRITE(6,*) &
-           'XX mtx_gather_vector: VecRestoreArrayF90: ierr=',ierr
+           'XX mtx_gather_vector: VecRestoreArray: ierr=',ierr
 
       RETURN
       END SUBROUTINE mtx_get_vector
@@ -674,15 +674,15 @@
       PetscScalar,pointer:: x_value(:)
       INTEGER:: j,ierr,imax_
 
-      call VecGetArrayF90(x,x_value,ierr)
+      call VecGetArray(x,x_value,ierr)
       IF(ierr.NE.0) WRITE(6,*) &
-           'XX mtx_gather_vector: VecGetArrayF90: ierr=',ierr
+           'XX mtx_gather_vector: VecGetArray: ierr=',ierr
       do j=1,irange
          v(j)=x_value(j)
       enddo
-      call VecRestoreArrayF90(x,x_value,ierr)
+      call VecRestoreArray(x,x_value,ierr)
       IF(ierr.NE.0) WRITE(6,*) &
-           'XX mtx_gather_vector: VecRestoreArrayF90: ierr=',ierr
+           'XX mtx_gather_vector: VecRestoreArray: ierr=',ierr
 
       imax_=imax      
 

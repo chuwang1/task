@@ -12,7 +12,7 @@ CONTAINS
     USE tiadas
     IMPLICIT NONE
     INTEGER,INTENT(IN):: NR
-    REAL(rkind):: RHON,DR_FIXED,rne,rte
+    REAL(rkind):: RHON,DR_FIXED,rne,rte,rnz
     REAL(rkind):: DR_inz,DR_rcb,DR_prb,DR_plt
     INTEGER:: NSA,NS,ID,NPZ,NSA1,ierr
 
@@ -25,6 +25,8 @@ CONTAINS
           CCU(NSA,NSA1,NR)=0.D0
        END DO
        PRADE(NSA,NR)=0.D0
+       PRADE_PRB(NSA,NR)=0.D0
+       PRADE_PLT(NSA,NR)=0.D0
     END DO
 
 ! --- ionization, recombination, and radiation ---
@@ -39,17 +41,26 @@ CONTAINS
        ID=ID_NS(NS)
        SELECT CASE(ID)
           CASE(-1) ! electron
-             PRADE(NSA,NR)=0.D0
-          CASE(0) ! stationary
-             PRADE(NSA,NR)=0.D0
-          CASE(1,2) ! ions
-             PRADE(NSA,NR)=0.D0
-          CASE(5,6) ! ADPOST PZ-variable ions
-             PZA(NSA)=func_adpost(NPA(NS),1,rte)
-             PZ2A(NSA)=func_adpost(NPA(NS),2,rte)
-             PRADE(NSA,NR)=func_adpost(NPA(NS),3,rte)
-          CASE(10,11,12) ! ionization and recombination with OPEN-ADAS
-             NPZ=NINT(PZA(NSA))
+              PRADE(NSA,NR)=0.D0
+              PRADE_PRB(NSA,NR)=0.D0
+              PRADE_PLT(NSA,NR)=0.D0
+           CASE(0) ! stationary
+              PRADE(NSA,NR)=0.D0
+              PRADE_PRB(NSA,NR)=0.D0
+              PRADE_PLT(NSA,NR)=0.D0
+           CASE(1,2) ! ions
+              PRADE(NSA,NR)=0.D0
+              PRADE_PRB(NSA,NR)=0.D0
+              PRADE_PLT(NSA,NR)=0.D0
+           CASE(5,6) ! ADPOST PZ-variable ions
+              PZA(NSA)=func_adpost(NPA(NS),1,rte)
+              PZ2A(NSA)=func_adpost(NPA(NS),2,rte)
+              PRADE(NSA,NR)=func_adpost(NPA(NS),3,rte)*RNA(NSA,NR)
+              PRADE_PRB(NSA,NR)=0.D0
+              PRADE_PLT(NSA,NR)=PRADE(NSA,NR)
+           CASE(10,11,12) ! ionization and recombination with OPEN-ADAS
+              rnz=RNA(NSA,NR)
+              NPZ=NINT(PZA(NSA))
              NSA1=NSA_UP(NSA)
              IF(NSA1.NE.0) THEN
                 CALL ADAS_scd(NPA(NS),NPZ+1,rne,rte,DR_inz,IERR)
@@ -67,12 +78,14 @@ CONTAINS
                 CALL ADAS_scd(NPA(NS),NPZ,rne,rte,DR_inz,IERR)
                 CCN(NSA,NSA1,NR)=CCN(NSA,NSA1,NR) &           ! ionization
                                 +DR_inz*rne                   !     from lower
-             END IF
-             CALL ADAS_prb(NPA(NS),NPZ,rne,rte,DR_prb,IERR)   ! recmb/brems pwr
-             CALL ADAS_plt(NPA(NS),NPZ,rne,rte,DR_plt,IERR)   ! line ard pwr
-             PRADE(NSA,NR)=(10.D0**DR_prb+10.D0**DR_plt)*rne
-          END SELECT
-       END DO
+              END IF
+              CALL ADAS_prb(NPA(NS),NPZ,rne,rte,DR_prb,IERR)   ! recmb/brems pwr
+              CALL ADAS_plt(NPA(NS),NPZ,rne,rte,DR_plt,IERR)   ! line ard pwr
+              PRADE_PRB(NSA,NR)=10.D0**DR_prb*rne*rnz*1.D20
+              PRADE_PLT(NSA,NR)=10.D0**DR_plt*rne*rnz*1.D20
+              PRADE(NSA,NR)=PRADE_PRB(NSA,NR)+PRADE_PLT(NSA,NR)
+            END SELECT
+        END DO
 
     DR_FIXED=DR0+(DRS-DR0)*RHON**2
 

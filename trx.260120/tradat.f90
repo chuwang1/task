@@ -243,6 +243,56 @@
 
 !     ***********************************************************
 
+!           RADIATION POWER - Ar
+
+!     ***********************************************************
+
+      FUNCTION TRRPAR(TE)
+
+      USE TRCOMM,ONLY: rkind
+      IMPLICIT NONE
+      REAL(rkind):: TE,TEL,ARG,TRRPAR
+      REAL(rkind):: AA10=-2.053043D+01, AA11=-2.834287D+00, AA12= 1.506902D+01, &
+                AA13= 3.517177D+01, AA14= 2.400122D+01, AA15= 5.0727238D+00
+      REAL(rkind):: AA20=-1.965204D+01, AA21=-1.172763D-01, AA22= 7.833220D+00, &
+                AA23=-6.351577D+00, AA24=-3.050849D+01, AA25=-1.528534D+01
+      REAL(rkind):: AA30=-1.974883D+01, AA31= 2.964839D+00, AA32=-8.829391D+00, &
+                AA33= 9.791004D+00, AA34=-4.9600188D+00, AA35= 9.8200328D-01
+      REAL(rkind):: AA40=-2.117935D+01, AA41= 5.191481D+00, AA42=-7.439717D+00, &
+                AA43= 4.969023D+00, AA44=-1.553180D+00, AA45= 1.877047D-01
+
+      IF(TE.LE.0.D0) THEN
+         TRRPAR = 0.D0
+      ELSE
+         TEL = LOG10(TE)
+         IF(TE.LE.3.D-2) THEN
+            TEL = LOG10(3.D-2)
+            ARG = AA10+(AA11*TEL)+(AA12*TEL**2)+(AA13*TEL**3) &
+                       +(AA14*TEL**4)+(AA15*TEL**5)
+         ELSEIF(TE.LE.2.D-1) THEN
+            ARG = AA10+(AA11*TEL)+(AA12*TEL**2)+(AA13*TEL**3) &
+                       +(AA14*TEL**4)+(AA15*TEL**5)
+         ELSEIF(TE.LE.2.D0) THEN
+            ARG = AA20+(AA21*TEL)+(AA22*TEL**2)+(AA23*TEL**3) &
+                       +(AA24*TEL**4)+(AA25*TEL**5)
+         ELSEIF(TE.LE.2.D1) THEN
+            ARG = AA30+(AA31*TEL)+(AA32*TEL**2)+(AA33*TEL**3) &
+                       +(AA34*TEL**4)+(AA35*TEL**5)
+         ELSEIF(TE.LE.1.D2) THEN
+            ARG = AA40+(AA41*TEL)+(AA42*TEL**2)+(AA43*TEL**3) &
+                       +(AA44*TEL**4)+(AA45*TEL**5)
+         ELSE
+            ARG = AA40+(AA41*TEL)+(AA42*TEL**2)+(AA43*TEL**3) &
+                       +(AA44*TEL**4)+(AA45*TEL**5)
+         END IF
+         TRRPAR = 10.D0**(ARG-13.D0)
+      END IF
+
+      RETURN
+      END FUNCTION TRRPAR
+
+!     ***********************************************************
+
 !           POWER LOSS
 
 !     ***********************************************************
@@ -255,8 +305,8 @@
       USE libitp
       IMPLICIT NONE
       INTEGER:: IERR, NR, NS
-      REAL(rkind):: ANDX, ANE, ANHE, ANT, EION, PLC, PLD, PLFE, PLHE, PLTT, &
-           PRLL, SCH, SION, TD, TE, TN, TNU, TRRPC, TRRPFE, TSL, &
+      REAL(rkind):: ANDX, ANE, ANHE, ANT, EION, PLC, PLAR, PLD, PLFE, PLHE, PLTT, &
+           PRLL, SCH, SION, TD, TE, TN, TNU, TRRPC, TRRPAR, TRRPFE, TSL, &
            ANI, TI, AMZE, AMZI, RTME, RTMI, C1, COEF_EI, COULOG
       INTEGER,SAVE:: irad_init=0
 
@@ -272,7 +322,8 @@
 !     Radiation loss caused by impurities
             PLFE  = ANE*ANFE(NR)*TRRPFE(TE)*1.D40
             PLC   = ANE*ANC (NR)*TRRPC (TE)*1.D40
-            PRL(NR)=PLFE+PLC
+            PLAR  = ANE*ANAR(NR)*TRRPAR(TE)*1.D40
+            PRL(NR)=PLFE+PLC+PLAR
 !     Override PRL with external line radiation if model_prlfixed=1
             IF(model_prlfixed.EQ.1) THEN
                PRL(NR)=PRL_ext(NR)

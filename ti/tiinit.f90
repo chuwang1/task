@@ -403,6 +403,7 @@ CONTAINS
       adpost_filename='ADPOST-DATA'
       adas_adf11_dir='./'
       adas_adf11_filename='ADF11-bin.data'
+      omfit_profile_csv=' '
 
       DO NS=1,NSM
          PT(NS)=(PTPR(NS)+2.D0*PTPP(NS))/3.D0

@@ -8,22 +8,68 @@
 
       USE TRCOMM
       IMPLICIT NONE
-      INTEGER:: NNB,NR,NS
+      INTEGER:: NNB,NR,NS,nray
+      REAL(rkind):: sum,xx
 
-      DO NNB=1,NNBMAX
+      ! --- set nraymax_nnb_max and allocate ---
+
+      nraymax_nnb_max=0
+      DO nnb=1,nnbmax
+         nraymax_nnb_max=MAX(nraymax_nnb_max,nraymax_nnb(nnb))
+      END DO
+      
+      ! --- allocate PNB_weight ---
+      
+      IF(ALLOCATED(PNB_weight)) THEN
+         IF(SIZE(PNB_weight,1).NE.nraymax_nnb_max.OR. &
+            SIZE(PNB_weight,2).NE.nnbmax) THEN
+            DEALLOCATE(PNB_weight)
+            ALLOCATE(PNB_weight(nraymax_nnb_max,nnbmax))
+         ENDIF
+      ELSE
+         ALLOCATE(PNB_weight(nraymax_nnb_max,nnbmax))
+      END IF
+
+      ! --- allocate GPNB ---
+      
+      IF(ALLOCATED(GPNB)) THEN
+         IF(SIZE(GPNB,1).NE.4*NRMAX.OR. &
+            SIZE(GPNB,2).NE.nraymax_nnb_max) THEN
+            DEALLOCATE(GPNB)
+            ALLOCATE(GPNB(4*NRMAX,nraymax_nnb_max))
+         END IF
+      ELSE
+         ALLOCATE(GPNB(4*NRMAX,nraymax_nnb_max))
+      END IF
+
+      ! --- set pnb_weight ---
+
+      DO nnb=1,nnbmax
+         sum=0.D0
+         DO nray=1,nraymax_nnb(nnb)
+            xx=2.D0*(DBLE(nray)/DBLE(nraymax_nnb(nnb)+1)-0.5D0)  ! -1.0..1.0
+            PNB_weight(nray,nnb)=EXP(-3.D0*xx**2)
+            sum=sum+PNB_weight(nray,nnb)
+         END DO
+         DO nray=1,nraymax_nnb(nnb)
+            PNB_weight(nray,nnb)=PNB_weight(nray,nnb)/sum
+         END DO
+         
+      ! --- calculate NB deposition ---   
+
          SELECT CASE(model_nnb(NNB))
          CASE(0)
             TAUB(NNB,1:NRMAX)=1.D0
-            PNB_NSNNBNR(1:NSMAX,NNB,1:NRMAX)=0.D0
-            SNB_NSNNBNR(1:NSMAX,NNB,1:NRMAX)=0.D0
+            PNB_NNBNR(NNB,1:NRMAX)=0.D0
+            SNB_NNBNR(NNB,1:NRMAX)=0.D0
          CASE(1)
             CALL TRNBIA(NNB)
-            SNB_NSNNBNR(1:NSMAX,NNB,1:NRMAX)=0.D0
+            SNB_NNBNR(NNB,1:NRMAX)=0.D0
          CASE(2)
             CALL TRNBIA(NNB)
          CASE(3)
             CALL TRNBIB(NNB)
-            SNB_NSNNBNR(1:NSMAX,NNB,1:NRMAX)=0.D0
+            SNB_NNBNR(NNB,1:NRMAX)=0.D0
          CASE(4)
             CALL TRNBIB(NNB)
          END SELECT
@@ -38,15 +84,78 @@
 !              PBIN(NR),PBCL(NR,1),PBIN(NR),PBCL(NR,1)
 !      END DO
 
+      SNBT=0.D0
+      PNBT=0.D0
+      DO NS=1,NSMAX
+         SNB_NS(NS)=0.D0
+         PNB_NS(NS)=0.D0
+      END DO
       DO NR=1,NRMAX
+         SNB_NR(NR)=0.D0
+         PNB_NR(NR)=0.D0
          DO NS=1,NSMAX
-            SNB_NSNR(NS,NR)=SUM(SNB_NSNNBNR(NS,1:NNBMAX,NR))
-            PNBCL_NSNR(NS,NR)=SUM(PNBCL_NSNNBNR(NS,1:NNBMAX,NR))
-            AJNB_NSNR(NS,NR)=SUM(AJNB_NSNNBNR(NS,1:NNBMAX,NR))
+            SNB_NSNR(NS,NR)=0.D0
+            PNB_NSNR(NS,NR)=0.D0
          END DO
-         AJNB(NR)=SUM(AJNB_NSNR(1:NSMAX,NR))
+         DO NNB=1,NNBMAX
+            NS=NS_NNB(NNB)
+            SNB_NS(NS)=SNB_NS(NS)+SNB_NNBNR(NNB,NR)
+            PNB_NS(NS)=PNB_NS(NS)+PNB_NNBNR(NNB,NR)
+            SNB_NSNR(NS,NR)=SNB_NSNR(NS,NR)+SNB_NNBNR(NNB,NR)
+            PNB_NSNR(NS,NR)=PNB_NSNR(NS,NR)+PNB_NNBNR(NNB,NR)
+         END DO
+         DO NS=1,NSMAX
+            SNB_NR(NR)=SNB_NR(NR)+PZ(NS)*SNB_NSNR(NS,NR)
+            PNB_NR(NR)=PNB_NR(NR)+PNB_NSNR(NS,NR)
+            SNB_NS(NS)=SNB_NS(NS)+SNB_NSNR(NS,NR)
+            PNB_NS(NS)=PNB_NS(NS)+PNB_NSNR(NS,NR)
+         END DO
+         SNBT=SNBT+SNB_NR(NR)
+         PNBT=PNBT+PNB_NR(NR)
       END DO
 
+      DO NR=1,NRMAX
+         DO NS=1,NSMAX
+            PNBCL_NSNR(NS,NR)=0.D0
+            DO NNB=1,NNBMAX
+               PNBCL_NSNR(NS,NR)=PNBCL_NSNR(NS,NR)+PNBCL_NSNNBNR(NS,NNB,NR)
+            END DO
+         END DO
+         DO NNB=1,NNBMAX
+            PNBCL_NNBNR(NNB,NR)=0.D0
+            DO NS=1,NSMAX
+               PNBCL_NNBNR(NNB,NR)=PNBCL_NNBNR(NNB,NR)+PNBCL_NSNNBNR(NS,NNB,NR)
+            END DO
+         END DO
+      END DO
+      
+      DO NS=1,NSMAX
+         PNBCL_NS(NS)=0.D0
+         DO NR=1,NRMAX
+            PNBCL_NS(NS)=PNBCL_NS(NS)+PNBCL_NSNR(NS,NR)
+         END DO
+      END DO
+      DO NNB=1,NNBMAX
+         PNBCL_NNB(NNB)=0.D0
+         DO NR=1,NRMAX
+            PNBCL_NNB(NNB)=PNBCL_NNB(NNB)+PNBCL_NNBNR(NNB,NR)
+         END DO
+      END DO
+      PNB_TOT=0.D0
+      PNBIN_TOT=0.D0
+      PNBCL_TOT=0.D0
+      DO NNB=1,NNBMAX
+         PNB_TOT=PNB_TOT+PNBIN(NNB)
+         PNBIN_TOT=PNBIN_TOT+PNBIN_NNB(NNB)
+         PNBCL_TOT=PNBCL_TOT+PNBCL_NNB(NNB)
+      END DO
+
+      DO NR=1,NRMAX
+         AJNB(NR)=0.D0
+         DO NNB=1,NNBMAX
+            AJNB(NR)=AJNB(NR)+AJNB_NNBNR(NNB,NR)
+         END DO
+      END DO
       RETURN
       END SUBROUTINE TRPWNB
 
@@ -93,16 +202,17 @@
 
 !     ***********************************************************
 
-      SUBROUTINE TRNBIB(NNB)
+    SUBROUTINE TRNBIB(NNB)
 
-        USE TRCOMM
-        IMPLICIT NONE
-        INTEGER,INTENT(IN):: NNB
+      USE TRCOMM
+      IMPLICIT NONE
+      INTEGER,INTENT(IN):: NNB ! NBI ID
       INTEGER:: I, J, NRNB, NR
-      INTEGER,SAVE:: NRMAX_NNB_save=0
-      REAL(rkind)   ::DRTG, DVY, RDD, VY,sum,xx
-      REAL(rkind),ALLOCATABLE :: AR(:)
+      INTEGER,SAVE:: nraymax_nnb_save=0
+      REAL(rkind)   :: DRTG, DVY, RDD, VY,sum,xx
 
+      ! --- if no NBI power, fill particle and energy source zero ---
+      
       IF(PNBIN(NNB).LE.0.D0) THEN
          DO NR=1,NRMAX
             PNB_NNBNR(NNB,NR)=0.D0
@@ -111,37 +221,23 @@
          RETURN
       END IF
 
-      ALLOCATE(AR(NRMAX_NNB(NNB)))
-      IF(NRMAX_NNB(NNB).NE.NRMAX_NNB_save) THEN
-         IF(ALLOCATED(GPNB)) DEALLOCATE(GPNB)
-         ALLOCATE(GPNB(4*NRMAX,NRMAX_NNB(NNB)))
-         sum=0.D0
-         DO NRNB=1,NRMAX_NNB(NNB)
-            xx=2.D0*(DBLE(NRNB)/DBLE(NRMAX_NNB(NNB)+1)-0.5D0)  ! -1.0..1.0
-            AR(NRNB)=EXP(-3.D0*xx**2)
-            sum=sum+AR(NRNB)
-         END DO
-         DO NRNB=1,NRMAX_NNB(NNB)
-            AR(NRNB)=AR(NRNB)/sum
-         END DO
-         NRMAX_NNB_save=NRMAX_NNB(NNB)
-      END IF
-      SNB_NNBNR(NNB,1:NRMAX) = 0.D0
-      GPNB(1:4*NRMAX,1:NRMAX_NNB(NNB)) = 0.0
+      
 
-      DRTG=2.D0*PNBRW(NNB)/NRMAX_NNB(NNB)
-      DVY =2.D0*PNBVW(NNB)/NRMAX_NNB(NNB)
-      DO I=1,NRMAX_NNB(NNB)
-         DO J=1,NRMAX_NNB(NNB)
-            RDD=AR(J)*AR(I)
-            RTG(J)=PNBRTG(NNB)-PNBRW(NNB)+0.5D0*DRTG+DRTG*(J-1)
-            VY    =PNBVY(NNB) -PNBVW(NNB)+0.5D0*DVY +DVY *(I-1)
+      SNB_NNBNR(NNB,1:NRMAX) = 0.D0
+      GPNB(1:4*NRMAX,1:nraymax_nnb(NNB)) = 0.0
+
+      DRTG=2.D0*PNBRW(NNB)/nraymax_nnb(NNB)   ! horizontal profile step: R_tang
+      DVY =2.D0*PNBVW(NNB)/nraymax_nnb(NNB)   ! vertical profile step:   Z
+      DO I=1,nraymax_nnb(NNB)
+         DO J=1,nraymax_nnb(NNB)
+            RDD=PNB_weight(J,nnb)*PNB_weight(I,nnb)                                     ! weight
+            RTG(J)=PNBRTG(NNB)-PNBRW(NNB)+0.5D0*DRTG+DRTG*(J-1) ! R_tang pos
+            VY    =PNBVY(NNB) -PNBVW(NNB)+0.5D0*DVY +DVY *(I-1) ! Z pos 
             CALL TRNBPB(J,RTG(J),VY,RDD,NNB)
          ENDDO
       ENDDO
 
       PNB_NNBNR(NNB,1:NRMAX) = SNB_NNBNR(NNB,1:NRMAX)*1.D20*PNBENG(NNB)*RKEV
-      DEALLOCATE(AR)
 
       RETURN
       END SUBROUTINE TRNBIB
@@ -160,8 +256,8 @@
 !     RDD (in): NBI deposition rate
 
 !     KL  : judging condition parameter
-!           0 : beam energy has decreased at stopping condition
-!           1 : beam energy has not decreased at stopping condition yet
+!           0 : beam energy has been tatally absorbed at stopping condition
+!           1 : beam energy has not been absorbed at stopping condition yet
 !           2 : median center of beam line
 
       USE TRCOMM
@@ -177,40 +273,44 @@
 
       IF(PNBIN(NNB) <= 0.D0) RETURN
 
-!  COSTV : cosine between midplane and vertical position of NB
-      COSTV=SQRT(RA**2-VY**2)/RA
-!  RAL : minor radius of NB injection point projected to the midplane
-      RAL=RA*COSTV
-!  XL : maximum distance from injection point to wall
-      IF(R0 >= RR-RAL) THEN
+                 
+      COSTV=SQRT(RA**2-VY**2)/RA  ! cosine between midplane and vertical pos
+
+      RAL=RA*COSTV                ! minor radius of NB injection point
+                                  ! projected to the midplane
+
+      IF(R0 >= RR-RAL) THEN       ! maximum distance from injec. point to wall
          XL=2.D0*SQRT((RR+RAL)**2-R0**2)
       ELSE
          XL=SQRT((RR+RAL)**2-R0**2)-SQRT((RR-RAL)**2-R0**2)
       ENDIF
-!  ANL : beam intensity [num/s]
-!        (the number of beam particles per unit length
-!         divided by thier velocity)
+
       ANL=RDD*PNBIN(NNB)*1.D6/(PNBENG(NNB)*RKEV*1.D20)
-!  IB : number of vertical grid point from midplane to NB injection point,
-!       which defines innermost radial grid point of the heating region for each NB chord
+                                  ! beam intensity [num/s]
+                                  ! (number of beam particles per unit length
+                                  !  divided by thier velocity)
+
       IB = INT(ABS(VY/(DR*RA)))+1
-!  I : radial grid point of current NB deposition position
-      I=NRMAX-IB+1
+                                  ! number of vertical grid point
+                                  ! from midplane to NB injection point,
+                                  ! innermost radial grid point
+                                  ! of the heating region for each NB chord
+      
+      I=NRMAX-IB+1                ! radial grid point of NB deposition position
 
-!  SUML : total distance from injection point in eye direction of NB
-      SUML=0.D0
-!  ANL0 : stored ANL for truncation of calculation
-      ANL0=ANL
-!  DL : arbitrary minute length in direction of NB
-!      DL=XL/1000
-      DL=XL/500
-!  COST : cosine between midplane and NB chord
+      SUML=0.D0                   ! total distance from injection point
+                                  ! in eye direction of NB
+
+      ANL0=ANL                    ! saved ANL for truncation of calculation
+
+      DL=XL/500                   ! arbitrary minute length in direction of NB
+
       COST=SQRT((RR+RAL)**2-R0**2)/(RR+RAL)
-!  IDL : serial number of DL
-      IDL=0
+                                  ! cosine between midplane and NB chord
 
-!  IM : radial grid point turned back at magnetic axis
-   10 IF(I > 0) THEN
+      IDL=0                       ! serial number of DL
+
+   10 IF(I > 0) THEN              ! radial grid point turned back at mag axis
          IM=I+IB-1
       ELSE
          IF(ABS(I) <= NRMAX) THEN
@@ -224,8 +324,7 @@
 
 !      WRITE(6,'(3(1X,I4),3F15.7)') IB,I,IM,SUML,DL,XL
 
-!      IF(I.NE.0.AND.(IM.GE.1.AND.IM.LE.NRMAX)) THEN
-      IF(I /= 0 .AND. (IM >= IB .AND. IM <= NRMAX)) THEN
+      IF(I /= 0 .AND. (IM >= IB .AND. IM.GT.1 .AND. IM <= NRMAX)) THEN
 
       P1SUM = 0.D0
       RG1=(RG(IM  )*RA)**2-VY**2
@@ -287,11 +386,6 @@
             GBRH(IDL,J)=GUCLIP(ABS((RADIUSG-RR)/RAL))
             ! RADIUS2: Tangential NBI radius where NB currently exists.
             RADIUS2=SQRT(SUML**2+(RR+RAL)*(RR+RAL-2.D0*SUML*COST))
-!            write(6,'(2I4,5F13.7)') I,IM,ABS(RADIUS1-RADIUS2),DRG -ABS(RADIUS1-RADIUS2),RADIUS2-R0,RADIUS1,RADIUS2
-!            write(6,'(2I4,5F13.7)') I,IM,DRG-ABS(RADIUS1-RADIUS2),RADIUS1,RADIUS2,RADIUS2-R0,SUML
-!            write(6,'(2I4,5F13.7)') I,IM,ANL,P1,P1SUM,DRG-ABS(RADIUS1-RADIUS2),RADIUS2-R0
-!            write(6,'(2I4,5F13.7)') I,IM,DRG-ABS(RADIUS1-RADIUS2),RADIUS1,RADIUS2,SUML,RADIUS2-R0
-!            write(6,'(2I4,3F13.7)') I,IM,RG1,RG2,DRG
             IF(RADIUS2-R0 > 1.D-6) THEN
                IF(DRG-ABS(RADIUS1-RADIUS2) > 1.D-6) THEN
 !  inside the grid
@@ -315,6 +409,8 @@
 
 !  NB source flux (Half mesh)
       SNB_NNBNR(NNB,IM) = SNB_NNBNR(NNB,IM)+P1/(DVRHO(IM)*DR)
+!      IF(SNB_NNBNR(NNB,IM).GT.0.D0) &
+!         WRITE(6,'(A,2I6,ES12.4)') 'SNB,NNB,NR:',NNB,IM,SNB_NNBNR(NNB,IM)
 !!$      IF(IM.GT.1) SNB(IM-1) = SNB(IM-1)+0.25D0*P1/(DVRHO(IM-1)*DR)
 !!$      IF(IM.GT.1.AND.IM.LT.NRMAX) THEN
 !!$         SNB(IM  ) = SNB(IM  )+0.5D0 *P1/(DVRHO(IM  )*DR)
@@ -454,11 +550,10 @@
 
       SUBROUTINE TRPBCL(NNB)
 
-        USE TRCOMM
-        USE trlib
+      USE TRCOMM
       IMPLICIT NONE
       INTEGER,INTENT(IN):: NNB
-      REAL(rkind)    :: ANE, AMB, EC, EPS,HYB, &
+      REAL(rkind)    :: ANE, AMB, COULOG, EC, EPS, HY, HYB, &
            P2, P3, P4, PMB, PZB, TAUS, TAUS0, TE, VB, VC3,  &
            VCA3, VCD3, VCR, VCT3, VE, WB, XB, ZEFFM, ZN, PB, EF
       INTEGER :: NR,NS

@@ -105,7 +105,7 @@ def parse_and_plot(csv_file, num_evolution_lines=None):
 
         output_img = csv_file.replace('.csv', '.png')
         plt.savefig(output_img)
-        print(f"Plot saved to {output_img}")
+        # print(f"Plot saved to {output_img}")
         # plt.show() # Uncomment if running locally with display
     else:
         print("Not enough columns to plot.")

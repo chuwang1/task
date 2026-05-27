@@ -11,7 +11,7 @@
       USE libitp
       IMPLICIT NONE
       INTEGER:: NEQ, NF, NMK, NR, NRL, NS, NSSN, NSSN1, NSVN, NSVN1, NSW, NW
-      INTEGER:: NIC,NLH,NEC,NNB,NNF
+      INTEGER:: NNB,NNF
       REAL(rkind)   :: ANFSUM, C83, DRH, DV53, PMI, PLST, RNSUM, RNTSUM, &
            & RTSUM, RWSUM, SLST, SUMM, SUML, SUMP, VOL, WPOL
       REAL(rkind):: ANSUM,PMSUM
@@ -125,13 +125,23 @@
 !     *** Particle source ***
 
       DO NS=1,NSMAX
-         SPSC_NS(NS) = SUM(SPSC_NSNR(NS,1:NRMAX)*DVRHO(1:NRMAX))*DR
+         SPSCT(NS) = SUM(SPSC(1:NRMAX,NS)*DVRHO(1:NRMAX))*DR
       END DO
-      SPSC_TOT=SUM(SPSC_NS(1:NSMAX))
 
 !     *** Ohmic, NBI and fusion powers ***
 
+      DO NR=1,NRMAX
+         PNB_NR(NR)=0.D0
+         PNF_NR(NR)=0.D0
+         DO NS=1,NSMAX
+            PNB_NR(NR)=PNB_NR(NR)+PNB_NSNR(NS,NR)
+            PNF_NR(NR)=PNF_NR(NR)+PNF_NSNR(NS,NR)
+         END DO
+      END DO
+            
       POHT = SUM(POH(1:NRMAX)*DVRHO(1:NRMAX))*DR/1.D6
+      PNBT = SUM(PNB_NR(1:NRMAX)*DVRHO(1:NRMAX))*DR/1.D6
+      PNFT = SUM(PNF_NR(1:NRMAX)*DVRHO(1:NRMAX))*DR/1.D6
 
 !     *** External power typically for NBI from exp. data ***
 
@@ -141,196 +151,35 @@
 
 !     *** RF power ***
 
-      DO NR=1,NRMAX
-         DO NS=1,NSMAX
-            PIC_NSNR(NS,NR)=SUM(PIC_NSNICNR(NS,1:NICMAX,NR))
-            PLH_NSNR(NS,NR)=SUM(PLH_NSNLHNR(NS,1:NLHMAX,NR))
-            PEC_NSNR(NS,NR)=SUM(PEC_NSNECNR(NS,1:NECMAX,NR))
-         END DO
-      END DO
-
-      DO NR=1,NRMAX
-         DO NIC=1,NICMAX
-            PIC_NICNR(NIC,NR)=SUM(PIC_NSNICNR(1:NSMAX,NIC,NR))
-         END DO
-         DO NLH=1,NLHMAX
-            PLH_NLHNR(NLH,NR)=SUM(PLH_NSNLHNR(1:NSMAX,1:NLH,NR))
-         END DO
-         DO NEC=1,NECMAX
-            PEC_NECNR(NEC,NR)=SUM(PEC_NSNECNR(1:NSMAX,1:NEC,NR))
-         END DO
-      END DO
-
       DO NS=1,NSMAX
-         DO NIC=1,NICMAX
-            PIC_NSNIC(NS,NIC) &
-                 =SUM(PIC_NSNICNR(NS,NIC,1:NRMAX)*DVRHO(1:NRMAX))*DR
-         END DO
-         DO NLH=1,NLHMAX
-            PLH_NSNLH(NS,NLH) &
-                 =SUM(PLH_NSNLHNR(NS,NLH,1:NRMAX)*DVRHO(1:NRMAX))*DR
-         END DO
-         DO NEC=1,NECMAX
-            PEC_NSNEC(NS,NEC) &
-                 =SUM(PEC_NSNECNR(NS,NEC,1:NRMAX)*DVRHO(1:NRMAX))*DR
-         END DO
+         PRFVT(NS,1) = SUM(PRFV(1:NRMAX,NS,1)*DVRHO(1:NRMAX))*DR/1.D6
+         PRFVT(NS,2) = SUM(PRFV(1:NRMAX,NS,2)*DVRHO(1:NRMAX))*DR/1.D6
+         PRFVT(NS,3) = SUM(PRFV(1:NRMAX,NS,3)*DVRHO(1:NRMAX))*DR/1.D6
+         PRFT (NS  ) = SUM(PRF (1:NRMAX,NS)  *DVRHO(1:NRMAX))*DR/1.D6
+      ENDDO
+
+!     *** Total NBI power distributed on electrons and bulk ions ***
+
+      PNBINT=PNBT
+      DO NS=1,NSMAX
+         PNBCLT(NS)=PNBCL_NS(NS)
       END DO
-      DO NIC=1,NICMAX
-         PIC_NIC(NIC)=SUM(PIC_NSNIC(1:NSMAX,NIC))
-      END DO
-      DO NLH=1,NLHMAX
-         PLH_NLH(NLH)=SUM(PLH_NSNLH(1:NSMAX,NLH))
-      END DO
-      DO NEC=1,NECMAX
-         PEC_NEC(NEC)=SUM(PEC_NSNEC(1:NSMAX,NEC))
+
+!     *** Total RF power distributed on electrons and bulk ions ***
+
+      PNFINT=0.D0
+      DO NNF=1,NNFMAX
+         PNFINT = PNFINT &
+              +SUM(PNFIN_NNFNR(NNF,1:NRMAX)*DVRHO(1:NRMAX))*DR/1.D6
       END DO
       DO NS=1,NSMAX
-         PIC_NS(NS)=SUM(PIC_NSNIC(NS,1:NICMAX))
-         PLH_NS(NS)=SUM(PLH_NSNLH(NS,1:NLHMAX))
-         PEC_NS(NS)=SUM(PEC_NSNEC(NS,1:NECMAX))
-      END DO
-      PIC_TOT=SUM(PIC_NS(1:NSMAX))
-      PLH_TOT=SUM(PLH_NS(1:NSMAX))
-      PEC_TOT=SUM(PEC_NS(1:NSMAX))
-
-      DO NR=1,NRMAX
-         DO NS=1,NSMAX
-            PRF_NSNR(NS,NR)=PIC_NSNR(NS,NR)+PLH_NSNR(NS,NR)+PEC_NSNR(NS,NR)
-         END DO
-      END DO
-      DO NR=1,NRMAX
-         PRF_NR(NR)=SUM(PRF_NSNR(1:NSMAX,NR))
-      END DO
-      DO NS=1,NSMAX
-         PRF_NS(NS)=PIC_NS(NS)+PLH_NS(NS)+PEC_NS(NS)
-      END DO
-      PRF_TOT=SUM(PRF_NS(1:NSMAX))
-
-!     *** NBI source profile ***
-
-      DO NR=1,NRMAX
-         DO NS=1,NSMAX
-            SNB_NSNR(NS,NR)=SUM(SNB_NSNNBNR(NS,1:NNBMAX,NR))
-            PNB_NSNR(NS,NR)=SUM(PNB_NSNNBNR(NS,1:NNBMAX,NR))
-            PNBIN_NSNR(NS,NR)=SUM(PNBIN_NSNNBNR(NS,1:NNBMAX,NR))
-            PNBCL_NSNR(NS,NR)=SUM(PNBCL_NSNNBNR(NS,1:NNBMAX,NR))
-         END DO
-      END DO
-
-      DO NR=1,NRMAX
-         DO NNB=1,NNBMAX
-            SNB_NNBNR(NNB,NR)=SUM(SNB_NSNNBNR(1:NSMAX,NNB,NR))
-            PNB_NNBNR(NNB,NR)=SUM(PNB_NSNNBNR(1:NSMAX,NNB,NR))
-            PNBIN_NNBNR(NNB,NR)=SUM(PNBIN_NSNNBNR(1:NSMAX,NNB,NR))
-            PNBCL_NNBNR(NNB,NR)=SUM(PNBCL_NSNNBNR(1:NSMAX,NNB,NR))
-         END DO
-      END DO
-
-      DO NS=1,NSMAX
-         DO NNB=1,NNBMAX
-            SNB_NSNNB(NS,NNB) &
-                 =SUM(SNB_NSNNBNR(NS,NNB,1:NRMAX)*DVRHO(1:NRMAX))*DR
-            PNB_NSNNB(NS,NNB) &
-                 =SUM(PNB_NSNNBNR(NS,NNB,1:NRMAX)*DVRHO(1:NRMAX))*DR
-            PNBIN_NSNNB(NS,NNB) &
-                 =SUM(PNBIN_NSNNBNR(NS,NNB,1:NRMAX)*DVRHO(1:NRMAX))*DR
-            PNBCL_NSNNB(NS,NNB) &
-                 =SUM(PNBCL_NSNNBNR(NS,NNB,1:NRMAX)*DVRHO(1:NRMAX))*DR
-         END DO
-      END DO
-      DO NNB=1,NNBMAX
-         SNB_NNB(NNB)=SUM(SNB_NSNNB(1:NSMAX,NNB))
-         PNB_NNB(NNB)=SUM(PNB_NSNNB(1:NSMAX,NNB))
-         PNBIN_NNB(NNB)=SUM(PNBIN_NSNNB(1:NSMAX,NNB))
-         PNBCL_NNB(NNB)=SUM(PNBCL_NSNNB(1:NSMAX,NNB))
-      END DO
-      DO NS=1,NSMAX
-         SNB_NS(NS)=SUM(SNB_NSNNB(NS,1:NNBMAX))
-         PNB_NS(NS)=SUM(PNB_NSNNB(NS,1:NNBMAX))
-         PNBIN_NS(NS)=SUM(PNBIN_NSNNB(NS,1:NNBMAX))
-         PNBCL_NS(NS)=SUM(PNBCL_NSNNB(NS,1:NNBMAX))
-      END DO
-      SNB_TOT=SNB_NS(1)    ! number of electron increment
-      PNB_TOT=SUM(PNB_NS(1:NSMAX))
-      PNBIN_TOT=SUM(PNBIN_NS(1:NSMAX))
-      PNBCL_TOT=SUM(PNBCL_NS(1:NSMAX))
-
-!     *** Fusion reaction profile ***
-
-      DO NR=1,NRMAX
-         DO NS=1,NSMAX
-            SNF_NSNR(NS,NR)=SUM(SNF_NSNNFNR(NS,1:NNFMAX,NR))
-            PNF_NSNR(NS,NR)=SUM(PNF_NSNNFNR(NS,1:NNFMAX,NR))
-            PNFIN_NSNR(NS,NR)=SUM(PNFIN_NSNNFNR(NS,1:NNFMAX,NR))
-            PNFCL_NSNR(NS,NR)=SUM(PNFCL_NSNNFNR(NS,1:NNFMAX,NR))
-         END DO
-      END DO
-
-      DO NR=1,NRMAX
+         PNFCLT(NS)=0.D0
          DO NNF=1,NNFMAX
-            SNF_NNFNR(NNF,NR)=SUM(SNF_NSNNFNR(1:NSMAX,NNF,NR))
-            PNF_NNFNR(NNF,NR)=SUM(PNF_NSNNFNR(1:NSMAX,NNF,NR))
-            PNFIN_NNFNR(NNF,NR)=SUM(PNFIN_NSNNFNR(1:NSMAX,NNF,NR))
-            PNFCL_NNFNR(NNF,NR)=SUM(PNFCL_NSNNFNR(1:NSMAX,NNF,NR))
-         END DO
+            PNFCLT(NS) = PNFCLT(NS) &
+                 +SUM(PNFCL_NSNNFNR(NS,NNF,1:NRMAX)*DVRHO(1:NRMAX))*DR/1.D6
+         ENDDO
       END DO
-
-      DO NNF=1,NNFMAX
-         DO NS=1,NSMAX
-            SNF_NSNNF(NS,NNF) &
-                 =SUM(SNF_NSNNFNR(NS,NNF,1:NRMAX)*DVRHO(1:NRMAX))*DR
-            PNF_NSNNF(NS,NNF) &
-                 =SUM(PNF_NSNNFNR(NS,NNF,1:NRMAX)*DVRHO(1:NRMAX))*DR
-            PNFIN_NSNNF(NS,NNF) &
-                 =SUM(PNFIN_NSNNFNR(NS,NNF,1:NRMAX)*DVRHO(1:NRMAX))*DR
-            PNFCL_NSNNF(NS,NNF) &
-                 =SUM(PNFCL_NSNNFNR(NS,NNF,1:NRMAX)*DVRHO(1:NRMAX))*DR
-         END DO
-      END DO
-
-      DO NR=1,NRMAX
-         SNF_NR(NR)=SUM(SNF_NNFNR(1:NNFMAX,NR))
-         PNF_NR(NR)=SUM(PNF_NNFNR(1:NNFMAX,NR))
-         PNFIN_NR(NR)=SUM(PNFIN_NNFNR(1:NNFMAX,NR))
-         PNFCL_NR(NR)=SUM(PNFCL_NNFNR(1:NNFMAX,NR))
-      END DO
-
-      DO NNF=1,NNFMAX
-         SNF_NNF(NNF)=SUM(SNF_NSNNF(1:NSMAX,NNF))
-         PNF_NNF(NNF)=SUM(PNF_NSNNF(1:NSMAX,NNF))
-         PNFIN_NNF(NNF)=SUM(PNFIN_NSNNF(1:NSMAX,NNF))
-         PNFCL_NNF(NNF)=SUM(PNFCL_NSNNF(1:NSMAX,NNF))
-      END DO
-
-      DO NS=1,NSMAX
-         SNF_NS(NS)=SUM(SNF_NSNNF(NS,1:NNFMAX))
-         PNF_NS(NS)=SUM(PNF_NSNNF(NS,1:NNFMAX))
-         PNFIN_NS(NS)=SUM(PNFIN_NSNNF(NS,1:NNFMAX))
-         PNFCL_NS(NS)=SUM(PNFCL_NSNNF(NS,1:NNFMAX))
-      END DO
-
-      SNF_TOT=SNF_NS(1)         ! number of electron increment
-      PNF_TOT=SUM(PNF_NS(1:NSMAX))
-      PNFIN_TOT=SUM(PNFIN_NS(1:NSMAX))
-      PNFCL_TOT=SUM(PNFCL_NS(1:NSMAX))
-
-      ! --- fusion neutron ---
-
-      DO NR=1,NRMAX
-         SNFNN_NR(NR)=SUM(SNF_NNFNR(1:NNFMAX,NR))
-         PNFNN_NR(NR)=SUM(PNF_NNFNR(1:NNFMAX,NR))
-      END DO
-
-      DO NNF=1,NNFMAX
-         SNFNN_NNF(NNF) &
-              =SUM(SNFNN_NNFNR(NNF,1:NRMAX)*DVRHO(1:NRMAX))*DR
-         PNFNN_NNF(NNF) &
-              =SUM(PNFNN_NNFNR(NNF,1:NRMAX)*DVRHO(1:NRMAX))*DR
-      END DO
-
-      SNFNN_TOT=SUM(SNFNN_NNF(1:NNFMAX))
-      PNFNN_TOT=SUM(PNFNN_NNF(1:NNFMAX))
-
+      
 !     *** Radiation, charge exchange and ionization losses ***
 
       PRBT  = SUM(PRB(1:NRMAX)*DVRHO(1:NRMAX))*DR/1.D6
@@ -364,7 +213,7 @@
       ENDIF
       NSW=3
       NRMAX=NRAMAX
-      CALL tr_calc_coef(NRL,NSW,DV53)
+      CALL TR_COEF_DECIDE(NRL,NSW,DV53)
       NRMAX=NROMAX
       NMK=2
       DRH=DR/DVRHO(NRL)**(2.D0/3.D0)
@@ -398,32 +247,32 @@
 !     *** Ionization, fusion and NBI fuelling ***
 
       SIET = SUM(SIE(1:NRMAX)*DVRHO(1:NRMAX))*DR
+      SNBT=0.D0
+      SNFT=0.D0
       DO NS=1,NSMAX
          SNB_NS(NS)=SUM(SNB_NSNR(NS,1:NRMAX)*DVRHO(1:NRMAX))*DR
          SNF_NS(NS)=SUM(SNF_NSNR(NS,1:NRMAX)*DVRHO(1:NRMAX))*DR
       END DO
-      SNB_TOT=SUM(SNB_NS(1:NSMAX))
-      SNF_TOT=SUM(SNF_NS(1:NSMAX))
+      SNBT=SUM(SNB_NS(1:NSMAX))
+      SNFT=SUM(SNF_NS(1:NSMAX))
 
 !     *** Pellet injection fuelling ***
 
       DO NS=1,NSMAX
-         SPEL_NS(NS) = SUM(SPEL_NSNR(NS,1:NRMAX)*DVRHO(1:NRMAX))*DR/RKAP
-         SPSC_NS(NS) = SUM(SPSC_NSNR(NS,1:NRMAX)*DVRHO(1:NRMAX))*DR/RKAP
+         SPET(NS) = SUM(SPE(1:NRMAX,NS)*DVRHO(1:NRMAX))*DR/RKAP
       ENDDO
-      SPEL_TOT=SUM(SPEL_NS(1:NSMAX))
-      SPSC_TOT=SUM(SPSC_NS(1:NSMAX))
 
 !     *** Input and output sources and powers ***
 
       WBULKT=SUM(WST(1:NSMAX))
       PEXST =SUM(PEXT(1:NSMAX))
+      PRFST =SUM(PRFT(1:NSMAX))
       PLST  =SUM(PLT(1:NSMAX))
       SLST  =SUM(SLT(1:NSMAX))
       WTAILT=SUM(WFT(1:NFMAX))
 
       WPT =WBULKT+WTAILT
-      PINT=POHT+PNB_TOT+PRF_TOT+PNF_TOT+PEXST
+      PINT=POHT+PNBT+PRFST+PNFT+PEXST
       POUT=PLST+PCXT+PIET+PRBT+PRCT+PRLT
       SINT=SIET+SNBT
       SOUT=SLST
@@ -477,7 +326,7 @@
 
 !     *** Fusion production rate ***
 
-      QF=5.D0*PNF_TOT/(POHT+PNB_TOT+PRF_TOT+PEXST)
+      QF=5.D0*PNFT/(POHT+PNBT+PRFST+PEXST)
 
 !     *** Distance of q=1 surface from magnetic axis ***
 
@@ -529,8 +378,7 @@
       NGT=NGT+1
 
       GT    (NGT) = GUCLIP(T)
-      !
-      GVT(NGT,1:NCTM)=0.0
+!
       GVT(NGT, 1) = GUCLIP(ANS0(1))
       GVT(NGT, 2) = GUCLIP(ANS0(2))
       GVT(NGT, 3) = GUCLIP(ANS0(3))
@@ -579,23 +427,23 @@
 
       GVT(NGT,39) = GUCLIP(PINT)
       GVT(NGT,40) = GUCLIP(POHT)
-      GVT(NGT,41) = GUCLIP(PNB_TOT)
-      GVT(NGT,42) = GUCLIP(PIC_TOT)
-      GVT(NGT,43) = GUCLIP(PLH_TOT)
-      GVT(NGT,44) = GUCLIP(PEC_TOT)
-      GVT(NGT,45) = GUCLIP(PRF_TOT)
-      GVT(NGT,46) = GUCLIP(PNF_TOT)
+      GVT(NGT,41) = GUCLIP(PNBT)
+      GVT(NGT,42) = GUCLIP(PRFT(1))
+      GVT(NGT,43) = GUCLIP(PRFT(2))
+      GVT(NGT,44) = GUCLIP(PRFT(3))
+      GVT(NGT,45) = GUCLIP(PRFT(4))
+      GVT(NGT,46) = GUCLIP(PNFT)
 
-      GVT(NGT,47) = GUCLIP(PNBIN_TOT)
-      GVT(NGT,48) = GUCLIP(PNBCL_NS(1))
-      GVT(NGT,49) = GUCLIP(PNBCL_NS(2))
-      GVT(NGT,50) = GUCLIP(PNBCL_NS(3))
-      GVT(NGT,51) = GUCLIP(PNBCL_NS(4))
-      GVT(NGT,52) = GUCLIP(PNFIN_TOT)
-      GVT(NGT,53) = GUCLIP(PNFCL_NS(1))
-      GVT(NGT,54) = GUCLIP(PNFCL_NS(2))
-      GVT(NGT,55) = GUCLIP(PNFCL_NS(3))
-      GVT(NGT,56) = GUCLIP(PNFCL_NS(4))
+      GVT(NGT,47) = GUCLIP(PNBINT)
+      GVT(NGT,48) = GUCLIP(PNBCLT(1))
+      GVT(NGT,49) = GUCLIP(PNBCLT(2))
+      GVT(NGT,50) = GUCLIP(PNBCLT(3))
+      GVT(NGT,51) = GUCLIP(PNBCLT(4))
+      GVT(NGT,52) = GUCLIP(PNFINT)
+      GVT(NGT,53) = GUCLIP(PNFCLT(1))
+      GVT(NGT,54) = GUCLIP(PNFCLT(2))
+      GVT(NGT,55) = GUCLIP(PNFCLT(3))
+      GVT(NGT,56) = GUCLIP(PNFCLT(4))
 
       GVT(NGT,57) = GUCLIP(POUT)
       GVT(NGT,58) = GUCLIP(PCXT)
@@ -608,8 +456,8 @@
 
       GVT(NGT,65) = GUCLIP(SINT)
       GVT(NGT,66) = GUCLIP(SIET)
-      GVT(NGT,67) = GUCLIP(SNB_TOT)
-      GVT(NGT,68) = GUCLIP(SNF_TOT)
+      GVT(NGT,67) = GUCLIP(SNBT)
+      GVT(NGT,68) = GUCLIP(SNFT)
       GVT(NGT,69) = GUCLIP(SOUT)
       GVT(NGT,70) = GUCLIP(SLT(1))
       GVT(NGT,71) = GUCLIP(SLT(2))
@@ -660,30 +508,6 @@
       GVT(NGT,108)= GUCLIP(PRBT)
       GVT(NGT,109)= GUCLIP(PRCT)
       GVT(NGT,110)= GUCLIP(PRLT)
-
-      GVT(NGT,111)= GUCLIP(SNF_NS(1))
-      GVT(NGT,112)= GUCLIP(SNF_NS(2))
-      GVT(NGT,113)= GUCLIP(SNF_NS(3))
-      GVT(NGT,114)= GUCLIP(SNF_NS(4))
-      IF(NSMAX.GE.5) GVT(NGT,115)= GUCLIP(SNF_NS(5))
-      IF(NSMAX.GE.6) GVT(NGT,116)= GUCLIP(SNF_NS(6))
-
-      GVT(NGT,117)= GUCLIP(PNF_NS(1))
-      GVT(NGT,118)= GUCLIP(PNF_NS(2))
-      GVT(NGT,119)= GUCLIP(PNF_NS(3))
-      GVT(NGT,120)= GUCLIP(PNF_NS(4))
-      IF(NSMAX.GE.5) GVT(NGT,121)= GUCLIP(PNF_NS(5))
-      IF(NSMAX.GE.6) GVT(NGT,122)= GUCLIP(PNF_NS(6))
-
-      IF(NNFMAX.GE.2) GVT(NGT,123)= GUCLIP(SNFNN_NNF(2))
-      IF(NNFMAX.GE.3) GVT(NGT,124)= GUCLIP(SNFNN_NNF(3))
-      IF(NNFMAX.GE.5) GVT(NGT,125)= GUCLIP(SNFNN_NNF(5))
-      IF(NNFMAX.GE.6) GVT(NGT,126)= GUCLIP(SNFNN_NNF(6))
-
-      IF(NNFMAX.GE.2) GVT(NGT,127)= GUCLIP(PNFNN_NNF(2))
-      IF(NNFMAX.GE.3) GVT(NGT,128)= GUCLIP(PNFNN_NNF(3))
-      IF(NNFMAX.GE.5) GVT(NGT,129)= GUCLIP(PNFNN_NNF(5))
-      IF(NNFMAX.GE.6) GVT(NGT,130)= GUCLIP(PNFNN_NNF(6))
 
 !     *** FOR 3D ***
 
@@ -860,7 +684,7 @@
       USE trparm
       IMPLICIT NONE
       CHARACTER(LEN=1),INTENT(IN):: KID
-      INTEGER:: I, IERR, IST, NDD, NDM, NDY, NTH1, NTM1, NTS1, NF
+      INTEGER:: I, IERR, IST, NDD, NDM, NDY, NTH1, NTM1, NTS1
       REAL   :: GTCPU2
       CHARACTER(LEN=3) :: K1, K2, K3, K4, K5, K6
       CHARACTER(LEN=40):: KCOM
@@ -885,16 +709,9 @@
          WRITE(6,602) WST(1),TS0(1),TSAV(1),ANSAV(1), &
      &                WST(2),TS0(2),TSAV(2),ANSAV(2), &
      &                WST(3),TS0(3),TSAV(3),ANSAV(3), &
-     &                WST(4),TS0(4),TSAV(4),ANSAV(4)
-         IF(NNBMAX+NNFMAX.GE.1) THEN
-            DO NF=1,NNBMAX
-               WRITE(6,681) NF,WFT(NF),TF0(NF),TFAV(NF),ANFAV(NF)
-            END DO
-            DO NF=NNBMAX+1,NNBMAX+NNFMAX
-               WRITE(6,682) NF,WFT(NF),TF0(NF),TFAV(NF),ANFAV(NF)
-            END DO
-         END IF
-            
+     &                WST(4),TS0(4),TSAV(4),ANSAV(4), &
+     &                WFT(1),TF0(1),TFAV(1),ANFAV(1), &
+     &                WFT(2),TF0(2),TFAV(2),ANFAV(2)
   602    FORMAT(' ',3X,'WE    =',1PD10.3,'  TE0   =',1PD10.3, &
      &               '  TEAVE =',1PD10.3,'  NEAVE =',1PD10.3/ &
      &          ' ',3X,'WD    =',1PD10.3,'  TD0   =',1PD10.3, &
@@ -902,12 +719,10 @@
      &          ' ',3X,'WT    =',1PD10.3,'  TT0   =',1PD10.3, &
      &               '  TTAVE =',1PD10.3,'  NTAVE =',1PD10.3/ &
      &          ' ',3X,'WA    =',1PD10.3,'  TA0   =',1PD10.3, &
-     &               '  TAAVE =',1PD10.3,'  NAAVE =',1PD10.3)
-  681    FORMAT(' ',I2,1X, &
-                       'WB    =',1PD10.3,'  TB0   =',1PD10.3, &
-     &               '  TBAVE =',1PD10.3,'  NBAVE =',1PD10.3)
-  682    FORMAT(' ',I2,1X, &
-                       'WF    =',1PD10.3,'  TF0   =',1PD10.3, &
+     &               '  TAAVE =',1PD10.3,'  NAAVE =',1PD10.3/ &
+     &          ' ',3X,'WB    =',1PD10.3,'  TB0   =',1PD10.3, &
+     &               '  TBAVE =',1PD10.3,'  NBAVE =',1PD10.3/ &
+     &          ' ',3X,'WF    =',1PD10.3,'  TF0   =',1PD10.3, &
      &               '  TFAVE =',1PD10.3,'  NFAVE =',1PD10.3)
 
          WRITE(6,603) AJT,VLOOP,ALI,VSEC, &
@@ -924,19 +739,19 @@
 !     &          ' ',3X,'AJT   =',1PD10.3,'  AJOHT =',1PD10.3, &
 !     &               '  AJNBT =',1PD10.3,'  AJBST =',1PD10.3)
 
-         WRITE(6,604) PINT,POHT,PNB_TOT,PNF_TOT, &
-     &                PIC_TOT,PLH_TOT,PEC_TOT,PRF_TOT, &
-     &                PNBIN_TOT,PNFIN_TOT,AJ(1)*1.D-6, &
-     &                PNBCL_NS(1),PNBCL_NS(2),PNBCL_NS(3),PNBCL_NS(4), &
-     &                PNFCL_NS(1),PNFCL_NS(2),PNFCL_NS(3),PNFCL_NS(4), &
+         WRITE(6,604) PINT,POHT,PNBT,PNFT, &
+     &                PRFT(1),PRFT(2),PRFT(3),PRFT(4), &
+     &                PNBINT,PNFINT,AJ(1)*1.D-6, &
+     &                PBCLT(1),PBCLT(2),PBCLT(3),PBCLT(4), &
+     &                PFCLT(1),PFCLT(2),PFCLT(3),PFCLT(4), &
      &                POUT,PRSUMT,PCXT,PIET, &
      &                PLT(1),PLT(2),PLT(3),PLT(4), &
                       PRBT,PRCT,PRLT
-  604    FORMAT(' ',3X,'PINT   =',1PD10.3,'  POHT   =',1PD10.3, &
-     &               '  PNB_TOT=',1PD10.3,'  PNF_TOT=',1PD10.3/ &
-     &          ' ',3X,'PIC_TOT=',1PD10.3,'  PLH_TOT=',1PD10.3, &
-     &               '  PEC_TOT=',1PD10.3,'  PRF_TOT=',1PD10.3/ &
-     &          ' ',3X,'PNBIN =',1PD10.3,'  PNFIN =',1PD10.3, &
+  604    FORMAT(' ',3X,'PINT  =',1PD10.3,'  POHT  =',1PD10.3, &
+     &               '  PNBT  =',1PD10.3,'  PNFT  =',1PD10.3/ &
+     &          ' ',3X,'PRFTE =',1PD10.3,'  PRFTD =',1PD10.3, &
+     &               '  PRFTT =',1PD10.3,'  PRFTA =',1PD10.3/ &
+     &          ' ',3X,'PBIN  =',1PD10.3,'  PFIN  =',1PD10.3, &
      &               '  AJ0   =',1PD10.3/ &
      &          ' ',3X,'PBCLE =',1PD10.3,'  PBCLD =',1PD10.3, &
      &               '  PBCLT =',1PD10.3,'  PBCLA =',1PD10.3/ &
@@ -1080,20 +895,17 @@
       ENDIF
 
       IF(KID.EQ.'6') THEN
-         WRITE(6,651)T,TAUE1,TAUE2,TAUE89,PINT,H98Y2,TAUE98
+         WRITE(6,651)T,TAUE1,TAUE2,TAUE89,PINT
  651     FORMAT(' ','# TIME : ',F7.3,' SEC'/ &
      &          ' ',3X,'TAUE1 =',1PD10.3,'  TAUE2 =',1PD10.3, &
-     &               '  TAUE89=',1PD10.3,'  PINT  =',1PD10.3/ &
-     &          ' ',3X,'H98Y2 =',1PD10.3,'  TAUE98=',1PD10.3)
+     &               '  TAUE89=',1PD10.3,'  PINT  =',1PD10.3)
       ENDIF
 
       IF(KID.EQ.'7'.OR.KID.EQ.'8') THEN
-         WRITE(6,671) T,WPT,TAUE1,TAUE2,TAUE89,H98Y2,TAUE98, &
-              BETAN,BETAPA,BETA0,BETAA
+         WRITE(6,671) T,WPT,TAUE1,TAUE2,TAUE89,BETAN,BETAPA,BETA0,BETAA
   671    FORMAT(' ','# TIME : ',F7.3,' SEC'/ &
      &          ' ',3X,'WPT   =',1PD10.3,'  TAUE1 =',1PD10.3, &
      &               '  TAUE2 =',1PD10.3,'  TAUE89=',1PD10.3/ &
-     &          ' ',3X,'H98Y2 =',1PD10.3,'  TAUE98=',1PD10.3/ &
      &          ' ',3X,'BETAN =',1PD10.3,'  BETAPA=',1PD10.3, &
      &               '  BETA0 =',1PD10.3,'  BETAA =',1PD10.3)
 
@@ -1110,10 +922,10 @@
      &          ' ',3X,'AJOHT =',1PD10.3,'  AJNBT =',1PD10.3, &
      &               '  AJRFT =',1PD10.3,'  AJBST =',1PD10.3)
 
-         WRITE(6,674) PINT,POHT,PNB_TOT, &
-     &                PRF_TOT,POUT,PRLT,PCXT,PIET
-  674    FORMAT(' ',3X,'PINT   =',1PD10.3,'  POHT   =',1PD10.3, &
-     &               '  PNB_TOT=',1PD10.3,'  PRF_TOT=',1PD10.3/ &
+         WRITE(6,674) PINT,POHT,PNBT, &
+     &                PRFT(1)+PRFT(2)+PRFT(3)+PRFT(4),POUT,PRLT,PCXT,PIET
+  674    FORMAT(' ',3X,'PINT  =',1PD10.3,'  POHT  =',1PD10.3, &
+     &               '  PNBT  =',1PD10.3,'  PRFT  =',1PD10.3/ &
      &          ' ',3X,'POUT  =',1PD10.3,'  PRLT  =',1PD10.3, &
      &               '  PCXT  =',1PD10.3,'  PIETE =',1PD10.3)
 
@@ -1134,14 +946,14 @@
          WRITE(K6,'(I3)') 100+NTS1
          WRITE(16,1670) K1(2:3),K2(2:3),K3(2:3),K4(2:3),K5(2:3),K6(2:3), &
      &                  KCOM, &
-     &                  RIPS,RIPE,PN(1),PN(2),BB,PIC_TOT,PLH_TOT,PEC_TOT
+     &                  RIPS,RIPE,PN(1),PN(2),BB,PICTOT,PLHTOT,PLHNPR
  1670    FORMAT(' '/ &
      &          ' ','## DATE : ', &
      &              A2,'-',A2,'-',A2,'  ',A2,':',A2,':',A2,' : ',A40/ &
      &          ' ',3X,'RIPS  =',1PD10.3,'  RIPE  =',1PD10.3, &
      &               '  PNE   =',1PD10.3,'  PNI   =',1PD10.3/ &
      &          ' ',3X,'BB    =',1PD10.3,'  PICTOT=',1PD10.3, &
-     &               '  PLHTOT=',1PD10.3,'  PECTOT=',1PD10.3)
+     &               '  PLHTOT=',1PD10.3,'  PLHNPR=',1PD10.3)
          WRITE(16,1671) T, &
      &                WPT,TAUE1,TAUE2,TAUE89, &
      &                BETAN,BETAPA,BETA0,BETAA
@@ -1165,11 +977,11 @@
      &          ' ',3X,'AJOHT =',1PD10.3,'  AJNBT =',1PD10.3, &
      &               '  AJRFT =',1PD10.3,'  AJBST =',1PD10.3)
 
-         WRITE(16,1674) PINT,POHT,PNB_TOT, &
-     &                PRF_TOT, &
+         WRITE(16,1674) PINT,POHT,PNBT, &
+     &                PRFT(1)+PRFT(2)+PRFT(3)+PRFT(4), &
      &                POUT,PRLT,PCXT,PIET
- 1674    FORMAT(' ',3X,'PINT   =',1PD10.3,'  POHT   =',1PD10.3, &
-     &               '  PNB_TOT=',1PD10.3,'  PRF_TOT=',1PD10.3/ &
+ 1674    FORMAT(' ',3X,'PINT  =',1PD10.3,'  POHT  =',1PD10.3, &
+     &               '  PNBT  =',1PD10.3,'  PRFT  =',1PD10.3/ &
      &          ' ',3X,'POUT  =',1PD10.3,'  PRLT  =',1PD10.3, &
      &               '  PCXT  =',1PD10.3,'  PIETE =',1PD10.3)
          CLOSE(16)
@@ -1491,23 +1303,23 @@
 
       KVT(39) = 'PINT      '
       KVT(40) = 'POHT      '
-      KVT(41) = 'PNB_TOT   '
-      KVT(42) = 'PIC_TOT   '
-      KVT(43) = 'PLH_TOT   '
-      KVT(44) = 'PEC_TOT   '
-      KVT(45) = 'PRF_TOT   '
-      KVT(46) = 'PNF_TOT   '
+      KVT(41) = 'PNBT      '
+      KVT(42) = 'PRFT(1)   '
+      KVT(43) = 'PRFT(2)   '
+      KVT(44) = 'PRFT(3)   '
+      KVT(45) = 'PRFT(4)   '
+      KVT(46) = 'PNFT      '
 
-      KVT(47) = 'PNBIN     '
-      KVT(48) = 'PNBCL(1)  '
-      KVT(49) = 'PNBCL(2)  '
-      KVT(50) = 'PNBCL(3)  '
-      KVT(51) = 'PNBCL(4)  '
-      KVT(52) = 'PNFIN     '
-      KVT(53) = 'PNFCL(1)  '
-      KVT(54) = 'PNFCL(2)  '
-      KVT(55) = 'PNFCL(3)  '
-      KVT(56) = 'PNFCL(4)  '
+      KVT(47) = 'PBINT     '
+      KVT(48) = 'PBCLT(1)  '
+      KVT(49) = 'PBCLT(2)  '
+      KVT(50) = 'PBCLT(3)  '
+      KVT(51) = 'PBCLT(4)  '
+      KVT(52) = 'PFINT     '
+      KVT(53) = 'PFCLT(1)  '
+      KVT(54) = 'PFCLT(2)  '
+      KVT(55) = 'PFCLT(3)  '
+      KVT(56) = 'PFCLT(4)  '
 
       KVT(57) = 'POUT      '
       KVT(58) = 'PCXT      '
@@ -1520,8 +1332,8 @@
 
       KVT(65) = 'SINT      '
       KVT(66) = 'SIET      '
-      KVT(67) = 'SNB_TOT   '
-      KVT(68) = 'SNF_TOT   '
+      KVT(67) = 'SNBT      '
+      KVT(68) = 'SNFT      '
       KVT(69) = 'SOUT      '
       KVT(70) = 'SLT(1)    '
       KVT(71) = 'SLT(2)    '
@@ -1572,32 +1384,6 @@
       KVT(108)= 'PRBT      '
       KVT(109)= 'PRCT      '
       KVT(110)= 'PRLT      '
-
-      KVT(111)= 'SNF_e     '
-      KVT(112)= 'SNF_D     '
-      KVT(113)= 'SNF_T     '
-      KVT(114)= 'SNF_He4   '
-      KVT(115)= 'SNF_He3   '
-      KVT(116)= 'SNF_H     '
-
-      KVT(117)= 'PNF_e     '
-      KVT(118)= 'PNF_D     '
-      KVT(119)= 'PNF_T     '
-      KVT(120)= 'PNF_He4   '
-      KVT(121)= 'PNF_He3   '
-      KVT(122)= 'PNF_H     '
-
-      KVT(123)= 'SNN_DD    '
-      KVT(124)= 'SNN_DD    '
-      KVT(125)= 'SNF_TT    '
-      KVT(126)= 'SNF_THe3  '
-
-      KVT(127)= 'PNN_DD    '
-      KVT(128)= 'PNN_DD    '
-      KVT(129)= 'PNF_TT    '
-      KVT(130)= 'PNF_THe3  '
-
-      
 
 !     *** FOR 3D ***
 

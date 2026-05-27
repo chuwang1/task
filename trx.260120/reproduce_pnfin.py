@@ -84,9 +84,9 @@ def sigmav_dt_simple(Ti_keV):
 
 # Read CSV data
 print("Reading CSV data...")
-data_n = read_tr_csv('tr_data_017.csv')   # n(NS) vs r
-data_T = read_tr_csv('tr_data_019.csv')   # T(NS) vs r
-data_pnfcl = read_tr_csv('tr_data_028.csv')  # PNFIN, PNFCL vs r (original)
+data_n = read_tr_csv('PyMak/data/density.csv')   # n(NS) vs r
+data_T = read_tr_csv('PyMak/data/temperature.csv')   # T(NS) vs r
+data_pnfcl = read_tr_csv('PyMak/data/PNFCL.csv')  # PNFIN, PNFCL vs r (original)
 
 # Extract data
 r_a_n = data_n[:, 0]

@@ -129,10 +129,10 @@ def calculate_pnfcl(r_a, ne, nD, nT, nA, Te, TD, TT, TA, WF):
 
 # Read CSV data
 print("Reading CSV data...")
-data_n = read_tr_csv('tr_data_017.csv')   # n(NS) vs r
-data_T = read_tr_csv('tr_data_019.csv')   # T(NS) vs r
-data_WF = read_tr_csv('tr_data_026.csv')  # WB, WF vs r
-data_pnfcl = read_tr_csv('tr_data_028.csv')  # PNFIN, PNFCL vs r (original)
+data_n = read_tr_csv('PyMak/data/density.csv')   # n(NS) vs r
+data_T = read_tr_csv('PyMak/data/temperature.csv')   # T(NS) vs r
+data_WF = read_tr_csv('tr_data_031.csv')  # WB, WF vs r
+data_pnfcl = read_tr_csv('PyMak/data/PNFIN.csv')  # PNFIN, PNFCL vs r (original)
 
 # Extract data
 r_a = data_n[:, 0]

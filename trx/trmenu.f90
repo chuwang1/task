@@ -20,7 +20,6 @@ CONTAINS
     USE trgout
     USE trfout
     USE trpnf
-    USE libnf
       
     USE libfio
     USE libkio
@@ -34,8 +33,6 @@ CONTAINS
     INTEGER:: NR,NS,NF,NTYPE,id_loop
     REAL(rkind),DIMENSION(npscm),SAVE:: PSCIN_FACTOR=1.D0
     INTEGER:: NPSC
-    INTEGER:: id
-    REAL(rkind):: temp
 
 !     ------ SELECTION OF TASK TYPE ------
 
@@ -152,15 +149,15 @@ CONTAINS
             
     ELSE IF(KID.EQ.'B') THEN
 7777   CONTINUE
-       WRITE(6,*) '## INPUT id,T(kev)T'
-       READ(5,*,END=7779) id,temp
-       WRITE(6,*) '   sigma=',sigmav_nf(id,temp)
+       WRITE(6,*) '## INPUT T'
+       READ(5,*,END=7779) T
+       WRITE(6,*) '   sigma=',SIGMAM(T,T)
        GOTO 7777
 7779   CONTINUE
 
     ELSE IF(KID.EQ.'M') THEN
 7800   CONTINUE
-       WRITE(6,'(A)') '## INPUT M: modify (1:pscin_factor,X:end)'
+       WRITE(6,'(A)') '## INPUT M: modify (6:pscin_factor,X:end)'
        READ(5,*,ERR=7800,END=1) KID
        CALL toupper(KID)
        SELECT CASE(KID)

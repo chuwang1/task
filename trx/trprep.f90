@@ -14,32 +14,41 @@ CONTAINS
     USE trprof
     USE trbpsd
     USE trmetric
-    USE trpnf
-    USE libnf
-    USE trfixed, ONLY: tr_prep_chifixed
+
+    USE trfixed
+    USE libsigma
     IMPLICIT NONE
     INTEGER,INTENT(OUT):: ierr
     INTEGER:: nr,ns,nnf,npm
 
     ! --- Intialize pl ---
 
+    WRITE(6,'(A)') '## DEBUG: tr_prep: before pl_prep'
+    CALL FLUSH(6)
     CALL pl_prep
 
     ! --- Intialize NS_X ---
 
+    WRITE(6,'(A)') '## DEBUG: tr_prep: before tr_prep_ns'
+    CALL FLUSH(6)
     CALL tr_prep_ns
-              
-    ! --- Intialize nf ---
-
-    CALL set_usigmav_nf
-              
-    ! --- allocate trcomm variables ---
-    
+          
     NFMAX=NNBMAX+NNFMAX
+    DO NNF=1,NNFMAX
+       IF(model_nnf(nnf).GE. 0.AND.model_nnf(nnf).LT.10) ns_nnf(nnf)=NS_He4
+       IF(model_nnf(nnf).GE.10.AND.model_nnf(nnf).LT.20) ns_nnf(nnf)=NS_T
+       IF(model_nnf(nnf).GE.20.AND.model_nnf(nnf).LT.30) ns_nnf(nnf)=NS_D
+       IF(model_nnf(nnf).GE.30.AND.model_nnf(nnf).LT.40) ns_nnf(nnf)=NS_He3
+       IF(model_nnf(nnf).GE.40.AND.model_nnf(nnf).LT.50) ns_nnf(nnf)=NS_H
+       IF(model_nnf(nnf).GE.50.AND.model_nnf(nnf).LT.60) ns_nnf(nnf)=NS_He4
+    END DO
 
+    WRITE(6,'(A)') '## DEBUG: tr_prep: before allocate_trcomm'
+    CALL FLUSH(6)
     CALL allocate_trcomm(ierr)
     IF(ierr.NE.0) RETURN
-
+    WRITE(6,'(A)') '## DEBUG: tr_prep: after allocate_trcomm'
+    CALL FLUSH(6)
     CALL tr_eqs_select(0)
 
     NROMAX=NRMAX
@@ -58,17 +67,24 @@ CONTAINS
 
     icount_of_pellet=0
 
-!     *** initialize fusion reaction ***
-
-    CALL tr_prep_pnf
+    CALL set_usigmavmal_dt
+!    CALL set_spl_usigmavm(2)  ! DT
 
 !     *** set initial profile ***
 
+    WRITE(6,'(A)') '## DEBUG: tr_prep: before tr_prof'
+    CALL FLUSH(6)
     CALL tr_prof
+    WRITE(6,'(A)') '## DEBUG: tr_prep: after tr_prof'
+    CALL FLUSH(6)
 
 !     *** Initialize bpsd data ***
 
+    WRITE(6,'(A)') '## DEBUG: tr_prep: before tr_bpsd_init'
+    CALL FLUSH(6)
     CALL tr_bpsd_init
+    WRITE(6,'(A)') '## DEBUG: tr_prep: after tr_bpsd_init'
+    CALL FLUSH(6)
     CALL tr_bpsd_put(ierr)
     IF(ierr.NE.0) THEN
        write(6,'(A,I5)') 'XX tr_bpsd_put in tr_prof: ierr=',ierr
@@ -78,19 +94,29 @@ CONTAINS
     
 !     *** CALCULATE METRIC FACTOR ***
 
+    WRITE(6,'(A)') '## DEBUG: tr_prep: before tr_set_metric'
+    CALL FLUSH(6)
     CALL tr_set_metric(ierr)
     IF(ierr.NE.0) THEN
        write(6,'(A,I5)') 'XX tr_set_metric in tr_metric: ierr=',ierr
        STOP
     END IF
-
-!     *** LOAD EXTERNAL TRANSPORT COEFFICIENTS ***
-    
-    CALL tr_prep_chifixed
       
 !     *** CALCULATE ANEAVE and ANC, ANFE ***
 
+    WRITE(6,'(A)') '## DEBUG: tr_prep: before tr_prof_impurity'
+    CALL FLUSH(6)
     CALL tr_prof_impurity
+    WRITE(6,'(A)') '## DEBUG: tr_prep: after tr_prof_impurity'
+    CALL FLUSH(6)
+
+!     *** Load external chi if model_chifixed>=1 or MDLKAI=170:189 ***
+!     MDLKAI=170-179: external chi shape factor model
+!     MDLKAI=180-189: scaling-based transport model (uses external shape)
+
+    IF(model_chifixed.GE.1 .OR. (MDLKAI.GE.170.AND.MDLKAI.LE.189)) THEN
+       CALL tr_prep_chifixed
+    ENDIF
 
 !     *** CALCULATE AJ, QP, BP, EZ ***
 
@@ -98,10 +124,12 @@ CONTAINS
 
 !     *** Initialize bpsd data ***
 
+    CALL tr_bpsd_init
+
     CALL tr_bpsd_put(ierr)
     IF(ierr.NE.0) THEN
-       write(6,'(A,I5)') 'XX tr_bpsd_put in tr_prof: ierr=',ierr
-       STOP
+        write(6,'(A,I5)') 'XX tr_bpsd_put in tr_prof: ierr=',ierr
+        STOP
     END IF
 
 !     *** initilize graphic data ***
@@ -375,7 +403,7 @@ CONTAINS
 
 !     *** GRID POINT OF EDGE REGION ***
 
-    NREDGE=NINT(0.93*NRMAX)
+    NREDGE=NINT(0.92*NRMAX)
 
     RETURN
   END SUBROUTINE TR_EQS_SELECT
@@ -403,7 +431,7 @@ CONTAINS
           NSS(NEQ)=1
           NSV(NEQ)=NSW
           IF(NSW.EQ.2.AND.IND.EQ.0) THEN
-             DO NEQI=NEQ-1,NEQMAX
+             DO NEQI=MAX(1,NEQ-1),NEQMAX
                 NSVN=NSV(NEQI)
                 IF(NSVN.EQ.1.AND.MDLEQE.EQ.0) THEN
                    DO NEQII=1,NEQMAX
@@ -442,7 +470,7 @@ CONTAINS
           ENDIF
           NSV(NEQ)=NSW
           IF(NSW.EQ.2.AND.IND.EQ.0) THEN
-             DO NEQI=NEQ-1,NEQMAX
+               DO NEQI=MAX(1,NEQ-1),NEQMAX
                 NSVN=NSV(NEQI)
                 IF(NSVN.EQ.1) THEN
                    DO NEQII=1,NEQMAX
@@ -466,7 +494,7 @@ CONTAINS
           ENDIF
           NSV(NEQ)=NSW
           IF(NSW.EQ.2.AND.IND.EQ.0) THEN
-             DO NEQI=NEQ-1,NEQMAX
+               DO NEQI=MAX(1,NEQ-1),NEQMAX
                 NSVN=NSV(NEQI)
                 IF(NSVN.EQ.1) THEN
                    DO NEQII=1,NEQMAX
@@ -486,7 +514,7 @@ CONTAINS
           NSS(NEQ)=4
           NSV(NEQ)=NSW
           IF(NSW.EQ.2.AND.IND.EQ.0) THEN
-             DO NEQI=NEQ-1,NEQMAX
+               DO NEQI=MAX(1,NEQ-1),NEQMAX
                 NSVN=NSV(NEQI)
                 IF(NSVN.EQ.1) THEN
                    DO NEQII=1,NEQMAX
@@ -506,7 +534,7 @@ CONTAINS
           NSS(NEQ)=3
           NSV(NEQ)=NSW
           IF(NSW.EQ.2.AND.IND.EQ.0) THEN
-             DO NEQI=NEQ-1,NEQMAX
+               DO NEQI=MAX(1,NEQ-1),NEQMAX
                 NSVN=NSV(NEQI)
                 IF(NSVN.EQ.1) THEN
                    DO NEQII=1,NEQMAX

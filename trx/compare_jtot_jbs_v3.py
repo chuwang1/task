@@ -28,6 +28,7 @@ import matplotlib.pyplot as plt
 import glob
 import os
 import re
+import netCDF4 as nc
 
 # ============================================================
 # Physical constants (matching TR code trcomm.f90)
@@ -47,6 +48,11 @@ RA = 2.72       # minor radius [m]
 BB = 6.0        # toroidal field [T]
 RKAP = 1.89     # elongation
 PBSCD = 1.0     # bootstrap current drive factor
+
+# OMFIT current profile inputs
+OMFIT_BASE_DIR = "/Users/dengxiaoya/CFEDRSW/OMFIT_out"
+OMFIT_NAMELIST_PATH = os.path.join(OMFIT_BASE_DIR, "profiles_CFEDR.namelist")
+OMFIT_STATEFILE_PATH = os.path.join(OMFIT_BASE_DIR, "statefile_3.000000E+01.nc")
 
 # ============================================================
 # Helper functions
@@ -82,6 +88,13 @@ def csv_index(path):
     if m is None:
         return None
     return int(m.group(1))
+
+
+def nearest_csv_distance(path, anchor_idx):
+    idx = csv_index(path)
+    if idx is None:
+        return 10**9
+    return abs(idx - anchor_idx)
 
 
 def choose_snapshot_files(data_dir='.'):
@@ -131,9 +144,7 @@ def choose_snapshot_files(data_dir='.'):
                     missing_required += 1
                 continue
 
-            nearest = min(
-                cands, key=lambda p: abs(csv_index(p) - idx0) if csv_index(p) is not None else 10**9
-            )
+            nearest = min(cands, key=lambda p: nearest_csv_distance(p, idx0))
             idxn = csv_index(nearest)
             bundle[key] = nearest
             if idxn is None:
@@ -187,6 +198,148 @@ def deriv3p(y0, y1, y2, x0, x1, x2):
 def trapped_fraction_kim(eps):
     """Trapped particle fraction: Kim et al., PoF B 3 2050 (1991) eq(C18)."""
     return 1.46 * np.sqrt(eps) - 0.46 * eps**1.5
+
+
+def parse_top_level_array(filepath, varname):
+    """Parse a top-level namelist array variable."""
+    if not os.path.exists(filepath):
+        return None
+    with open(filepath, "r", encoding="utf-8") as f:
+        text = f.read()
+
+    pattern = re.compile(rf"^\s*{re.escape(varname)}\s*=\s*", re.MULTILINE | re.IGNORECASE)
+    match = pattern.search(text)
+    if match is None:
+        return None
+
+    values = []
+    rest = text[match.end():]
+    for line in rest.splitlines():
+        s = line.strip()
+        if not s:
+            continue
+        if s.startswith("&") or re.match(r"^[A-Za-z_]\w*\s*=", s):
+            break
+        for token in s.replace(",", " ").split():
+            if "*" in token:
+                c_str, v_str = token.split("*", 1)
+                try:
+                    values.extend([float(v_str)] * int(c_str))
+                except ValueError:
+                    continue
+            else:
+                try:
+                    values.append(float(token))
+                except ValueError:
+                    continue
+    if not values:
+        return None
+    return np.asarray(values, dtype=float)
+
+
+def first_namelist_match(path, candidates):
+    for name in candidates:
+        arr = parse_top_level_array(path, name)
+        if arr is not None:
+            return arr, name
+    return None, None
+
+
+def first_state_var(ds, candidates):
+    for name in candidates:
+        if name in ds.variables:
+            return np.asarray(ds.variables[name][:], dtype=float), name
+    return None, None
+
+
+def interpolate_to_rho(rho_src, val_src, rho_dst):
+    idx = np.argsort(rho_src)
+    return np.interp(rho_dst, rho_src[idx], val_src[idx])
+
+
+def load_omfit_current_profiles():
+    """Load OMFIT current profiles from namelist/statefile."""
+    nm_rho, _ = first_namelist_match(OMFIT_NAMELIST_PATH, ["rho"])
+
+    nm_map = {
+        "tot": ["current_density"],
+        "oh": ["ohmic_current_density_onetwo", "ohmic_current_density"],
+        "bs": ["bootstrap_current_density_onetwo", "bootstrap_current_density"],
+        "ec": [
+            "ec_current_density_onetwo",
+            "eccd_current_density_onetwo",
+            "ec_current_density",
+            "eccd_current_density",
+        ],
+        "ic": [
+            "ic_current_density_onetwo",
+            "iccd_current_density_onetwo",
+            "ic_current_density",
+            "iccd_current_density",
+        ],
+        "rf": ["rfcd_current_density_onetwo", "rf_current_density_onetwo"],
+    }
+    sf_map = {
+        "tot": ["curden"],
+        "oh": ["curohm"],
+        "bs": ["curboot"],
+        "ec": ["curec", "cureccd", "curech", "eccd", "j_eccd"],
+        "ic": ["curic", "curiccd", "curich", "iccd", "j_iccd"],
+        "rf": ["currf"],
+    }
+
+    data = {}
+    sources = {}
+    for key, candidates in nm_map.items():
+        arr, used = first_namelist_match(OMFIT_NAMELIST_PATH, candidates)
+        if arr is not None:
+            data[key] = arr
+            sources[key] = f"namelist:{used}"
+
+    sf_rho = None
+    if os.path.exists(OMFIT_STATEFILE_PATH):
+        try:
+            with nc.Dataset(OMFIT_STATEFILE_PATH, "r") as ds:
+                sf_rho_raw = np.asarray(ds.variables["rho_grid"][:], dtype=float)
+                if np.nanmax(np.abs(sf_rho_raw)) > 1.0:
+                    sf_rho = sf_rho_raw / np.nanmax(np.abs(sf_rho_raw))
+                else:
+                    sf_rho = sf_rho_raw
+
+                for key, candidates in sf_map.items():
+                    if key in data:
+                        continue
+                    arr, used = first_state_var(ds, candidates)
+                    if arr is not None:
+                        data[key] = arr
+                        sources[key] = f"statefile:{used}"
+        except Exception as exc:
+            print(f"   WARNING: Failed to read OMFIT statefile: {exc}")
+
+    if nm_rho is not None:
+        rho = nm_rho
+    elif sf_rho is not None:
+        rho = sf_rho
+    else:
+        return None, None
+
+    for key, arr in list(data.items()):
+        if len(arr) == len(rho):
+            continue
+        if sources[key].startswith("statefile:") and sf_rho is not None:
+            data[key] = interpolate_to_rho(sf_rho, arr, rho)
+        elif sources[key].startswith("namelist:") and nm_rho is not None and len(nm_rho) == len(arr):
+            data[key] = interpolate_to_rho(nm_rho, arr, rho)
+        else:
+            del data[key]
+            del sources[key]
+
+    if not data:
+        return None, None
+
+    for key in list(data.keys()):
+        data[key] = data[key] / 1e6
+    return rho, data
 
 def F31_func(x, Z):
     """Sauter L31 coefficient."""
@@ -583,7 +736,7 @@ def main():
     # 5. Compare results
     # ============================================================
     print("\n5. Comparison results:")
-    print(f"\n   {'r/a':>6} {'JBS_csv':>12} {'JBS_calc':>12} {'Ratio':>10} {'Diff%':>10}")
+    print(f"\n   {'rho':>6} {'JBS_csv':>12} {'JBS_calc':>12} {'Ratio':>10} {'Diff%':>10}")
     print(f"   {'-'*54}")
     for idx in [0, NRMAX//10, NRMAX//4, NRMAX//2, 3*NRMAX//4, NRMAX-1]:
         ratio = JBS_avg[idx] / (JBS_csv[idx] + 1e-30) if abs(JBS_csv[idx]) > 1e-10 else float('nan')
@@ -608,7 +761,7 @@ def main():
     # ============================================================
     # 6. Diagnostics
     # ============================================================
-    print(f"\n6. Diagnostic: Key quantities at r/a=0.5:")
+    print(f"\n6. Diagnostic: Key quantities at rho=0.5:")
     idx_half = NRMAX // 2
     print(f"   eps = {eps[idx_half]:.4f}")
     print(f"   ft  = {ft[idx_half]:.4f}")
@@ -624,8 +777,8 @@ def main():
         print(f"   RDP = {RDP[idx_half]:.6f}")
         print(f"   ABVRHOG = {ABVRHOG[idx_half]:.6f}")
 
-    # Detailed diagnostic at r/a=0.25 (index 12)
-    print(f"\n   Detailed diagnostic at r/a=0.25 (index 12):")
+    # Detailed diagnostic at rho=0.25 (index 12)
+    print(f"\n   Detailed diagnostic at rho=0.25 (index 12):")
     i = 12
     if i < NRMAX - 1:
         Pe_avg = 0.5 * (Pe[i+1] + Pe[i])
@@ -662,6 +815,12 @@ def main():
     # ============================================================
     print("\n7. Generating plots...")
 
+    omfit_rho, omfit_currents = load_omfit_current_profiles()
+    if omfit_currents is None:
+        print("   OMFIT current profiles not found: figure 1 keeps CSV-only curves")
+    else:
+        print("   OMFIT current profiles loaded for figure 1 overlay")
+
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
     fig.suptitle('JTOT and JBS Analysis V3: Snapshot-Consistent + TR Edge Derivative', fontsize=14, fontweight='bold')
 
@@ -672,11 +831,26 @@ def main():
     ax.plot(r, JNB_csv, 'g-', lw=1.5, label='JNB')
     ax.plot(r, JRF_csv, 'c-', lw=1.5, label='JRF')
     ax.plot(r, JBS_csv, 'r-', lw=1.5, label='JBS')
+    if omfit_currents is not None and omfit_rho is not None:
+        omfit_styles = {
+            'tot': ('k--', 'OMFIT tot'),
+            'oh': ('b--', 'OMFIT oh'),
+            'bs': ('r--', 'OMFIT bs'),
+            'ec': ('m--', 'OMFIT ec'),
+            'ic': ('y--', 'OMFIT ic'),
+            'rf': ('0.4', 'OMFIT rf'),
+        }
+        for key, (style, label) in omfit_styles.items():
+            if key in omfit_currents:
+                if key == 'rf':
+                    ax.plot(omfit_rho, omfit_currents[key], '--', color=style, lw=1.2, label=label)
+                else:
+                    ax.plot(omfit_rho, omfit_currents[key], style, lw=1.2, label=label)
     ax.axhline(y=0, color='gray', ls='--', alpha=0.5)
-    ax.set_xlabel('r/a')
+    ax.set_xlabel('rho')
     ax.set_ylabel('J [MA/m²]')
-    ax.set_title('Current Density Components (from CSV)')
-    ax.legend(loc='best', fontsize=9)
+    ax.set_title('Current Density Components (CSV + OMFIT)')
+    ax.legend(loc='lower right', fontsize=9)
     ax.grid(True, alpha=0.3)
 
     # Plot 2: JBS comparison
@@ -684,7 +858,7 @@ def main():
     ax.plot(r, JBS_csv, 'r-', lw=2, label='JBS (CSV/TR)')
     ax.plot(r, JBS_avg, 'b--', lw=1.5, label='JBS (recalculated)')
     ax.axhline(y=0, color='gray', ls='--', alpha=0.5)
-    ax.set_xlabel('r/a')
+    ax.set_xlabel('rho')
     ax.set_ylabel('J [MA/m²]')
     ax.set_title('Bootstrap Current: CSV vs Recalculation')
     ax.legend(loc='best')
@@ -696,7 +870,7 @@ def main():
     ratio_arr[np.abs(JBS_csv) < 1e-10] = np.nan
     ax.plot(r, ratio_arr, 'g-', lw=1.5)
     ax.axhline(y=1.0, color='r', ls='--', alpha=0.7, label='Perfect match')
-    ax.set_xlabel('r/a')
+    ax.set_xlabel('rho')
     ax.set_ylabel('JBS_calc / JBS_csv')
     ax.set_title('Recalculation Ratio')
     ax.set_ylim([0, 2])
@@ -709,7 +883,7 @@ def main():
     ax.plot(r, RL32, 'r-', lw=1.5, label='L32')
     ax.plot(r, RL34, 'g-', lw=1.5, label='L34')
     ax.plot(r, salfa, 'm--', lw=1.5, label='α')
-    ax.set_xlabel('r/a')
+    ax.set_xlabel('rho')
     ax.set_ylabel('Coefficient')
     ax.set_title('Sauter Neoclassical Coefficients')
     ax.legend(loc='best')
@@ -722,7 +896,7 @@ def main():
         l1, = ax.plot(r, TTRHOG, 'b-', lw=1.5, label='TTRHOG')
         l2, = ax.plot(r, EPSRHO, 'r-', lw=1.5, label='EPSRHO')
         l3, = ax2.plot(r, RDP, 'g--', lw=1.5, label='RDP')
-        ax.set_xlabel('r/a')
+        ax.set_xlabel('rho')
         ax.set_ylabel('TTRHOG, EPSRHO')
         ax2.set_ylabel('RDP [Wb]')
         ax.set_title('Geometry Quantities from TR')
@@ -730,7 +904,7 @@ def main():
         ax.legend(lines, [l.get_label() for l in lines], loc='best')
     else:
         ax.plot(r, eps, 'r-', lw=1.5, label='eps (approx)')
-        ax.set_xlabel('r/a')
+        ax.set_xlabel('rho')
         ax.set_ylabel('epsilon')
         ax.set_title('Approximate Geometry')
         ax.legend(loc='best')
@@ -742,7 +916,7 @@ def main():
     l1, = ax.plot(r, nue_star, 'b-', lw=1.5, label='ν_e*')
     l2, = ax.plot(r, nui_star, 'r-', lw=1.5, label='ν_i*')
     l3, = ax2.plot(r, ft, 'g--', lw=1.5, label='f_t')
-    ax.set_xlabel('r/a')
+    ax.set_xlabel('rho')
     ax.set_ylabel('Collisionality (ν*)')
     ax2.set_ylabel('Trapped fraction')
     ax.set_title('Collisionality and Trapped Fraction')
@@ -757,7 +931,7 @@ def main():
 
     # Save data
     df = pd.DataFrame({
-        'r_a': r,
+        'rho': r,
         'JTOT_csv': JTOT_csv,
         'JBS_csv': JBS_csv,
         'JBS_recalc': JBS_avg,

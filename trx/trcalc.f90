@@ -22,23 +22,23 @@
 
       SIE(1:NRMAX)=0.D0
       SNF_NSNR(1:NSMAX,1:NRMAX)=0.D0
-      PNFCL_NSNR(1:NSMAX,1:NRMAX)=0.D0
       SNB_NSNR(1:NSMAX,1:NRMAX)=0.D0
-      PNBCL_NSNR(1:NSMAX,1:NRMAX)=0.D0
       POH(1:NRMAX)=0.D0
       PIE(1:NRMAX)=0.D0
+      QEI(1:NRMAX)=0.D0
       PCX(1:NRMAX)=0.D0
       PRB(1:NRMAX)=0.D0
       PRC(1:NRMAX)=0.D0
       PRL(1:NRMAX)=0.D0
       PRSUM(1:NRMAX)=0.D0
+      PNB_NSNR(1:NSMAX,1:NRMAX)=0.D0
       AJRFV(1:NRMAX,1)=0.D0
       AJRFV(1:NRMAX,2)=0.D0
       AJRFV(1:NRMAX,3)=0.D0
       AJRF(1:NRMAX)=0.D0
       AJBS(1:NRMAX)=0.D0
-      SPSC_NSNR(1:NSMAX,1:NRMAX)=0.D0
-      SPEL_NSNR(1:NSMAX,1:NRMAX)=0.D0
+      SPSC(1:NRMAX,1:NSMAX)=0.D0
+      SPE(1:NRMAX,1:NSMAX)=0.D0
       PRFV(1:NRMAX,1:NSM,1)=0.D0
       PRFV(1:NRMAX,1:NSM,2)=0.D0
       PRFV(1:NRMAX,1:NSM,3)=0.D0
@@ -135,20 +135,19 @@
                IF(NS.LE.NSMAX) THEN
                   IF(NS.EQ.NS_e) THEN
                      SSIN(NR,NS_e)= SIE(NR) &
-                          +SNF_NSNR(NS_e,NR) &
-                          +SNB_NSNR(NS_e,NR)+SEX(NR,NS_e)+SPSC_NSNR(NS_e,NR)
+                          +SNB_NSNR(NS_e,NR)+SEX(NR,NS_e)+SPSC(NR,NS_e)
                   ELSE IF(NS.EQ.NS_D) THEN
                      SSIN(NR,NS_D)= PN(NS_D)*SIE(NR)/(PN(NS_D)+PN(NS_T)) &
                           +SNF_NSNR(NS_D,NR)+SNB_NSNR(NS_D,NR) &
-                          +SEX(NR,NS_D)+SPSC_NSNR(NS_D,NR)
+                          +SEX(NR,NS_D)+SPSC(NR,NS_D)
                   ELSE IF(NS.EQ.NS_T) THEN
                      SSIN(NR,NS_T)= PN(NS_T)*SIE(NR)/(PN(NS_D)+PN(NS_T)) &
                           +SNF_NSNR(NS_T,NR)+SNB_NSNR(NS_T,NR) &
-                          +SEX(NR,NS_T)+SPSC_NSNR(NS_T,NR)
+                          +SEX(NR,NS_T)+SPSC(NR,NS_T)
                   ELSE IF(NS.EQ.NS_He4) THEN
                      SSIN(NR,NS_He4) &
                           =SNF_NSNR(NS_He4,NR)+SNB_NSNR(NS_He4,NR) &
-                          +SEX(NR,NS_He4)+SPSC_NSNR(NS_He4,NS)
+                          +SEX(NR,NS_He4)+SPSC(NR,NS_He4)
                   END IF
                ELSEIF(NS.EQ.NSMAX+NSZMAX+1) THEN
                   SSIN(NR,NSMAX+NSZMAX+1)=-SIE(NR)        -SCX(NR)
@@ -160,16 +159,16 @@
             DO NS=1,NSMAX
                IF(NS.EQ.NS_e) THEN
                   SSIN(NR,NS_e)=          SNB_NSNR(NS_e,NR) &
-                       +SEX(NR,NS_e)+SPSC_NSNR(NS_e,NR)
+                       +SEX(NR,NS_e)+SPSC(NR,NS_e)
                ELSEIF(NS.EQ.NS_D) THEN
                   SSIN(NR,NS_D)=SNF_NSNR(NS_D,NR)+SNB_NSNR(NS_D,NR) &
-                       +SEX(NR,NS_D)+SPSC_NSNR(NS_D,NR)
+                       +SEX(NR,NS_D)+SPSC(NR,NS_D)
                ELSEIF(NS.EQ.NS_T) THEN
                   SSIN(NR,NS_T)=SNF_NSNR(NS_T,NR)+SNB_NSNR(NS_T,NR) &
-                       +SEX(NR,NS_T)+SPSC_NSNR(NS_T,NR)
+                       +SEX(NR,NS_T)+SPSC(NR,NS_T)
                ELSEIF(NS.EQ.NS_He4) THEN
                   SSIN(NR,NS_He4)=SNF_NSNR(NS_He4,NR)+SNB_NSNR(NS_He4,NR) &
-                       +SEX(NR,NS_He4)+SPSC_NSNR(NS_He4,NR)
+                       +SEX(NR,NS_He4)+SPSC(NR,NS_He4)
                ELSE IF(NS.EQ.NS_C) THEN
                   SSIN(NR,NS_C)=0.D0
                ELSE IF(NS.EQ.NS_Fe) THEN
@@ -1057,8 +1056,7 @@
       ENDDO
       ENDIF
 
-      AJOH(1:NRMAX) = AJ(1:NRMAX) &
-           -(AJNB(1:NRMAX)+AJRF(1:NRMAX)+AJBS(1:NRMAX))
+      AJOH(1:NRMAX) = AJ(1:NRMAX)-(AJNB(1:NRMAX)+AJRF(1:NRMAX)+AJBS(1:NRMAX))
       EZOH(1:NRMAX) = ETA(1:NRMAX)*AJOH(1:NRMAX)
       POH(1:NRMAX)  = EZOH(1:NRMAX)*AJOH(1:NRMAX)
 
@@ -1302,3 +1300,34 @@
       RETURN
       END SUBROUTINE RMBRG
 
+!     ***********************************************************
+
+!           COULOMB LOGARITHM
+
+!     ***********************************************************
+
+      FUNCTION COULOG(NS1,NS2,ANEL,TL)
+
+!     ANEL : electron density [10^20 /m^3]
+!     TL   : electron or ion temperature [keV]
+!            in case of ion-ion collision, TL becomes ion temp.
+
+      USE TRCOMM,ONLY: rkind
+      IMPLICIT NONE
+      INTEGER:: NS1,NS2
+      REAL(rkind)   :: ANEL,TL,COULOG
+
+      ! Coulomb log: Tokamaks 2Ed. p.661
+      
+      IF(NS1.EQ.1.AND.NS2.EQ.1) THEN
+         COULOG=14.9D0-0.5D0*LOG(ANEL)+LOG(TL)
+      ELSE
+         IF(NS1.EQ.1.OR.NS2.EQ.1) THEN
+            COULOG=15.2D0-0.5D0*LOG(ANEL)+LOG(TL)
+         ELSE
+            COULOG=17.3D0-0.5D0*LOG(ANEL)+1.5D0*LOG(TL)
+         ENDIF
+      ENDIF
+
+      RETURN
+      END FUNCTION COULOG

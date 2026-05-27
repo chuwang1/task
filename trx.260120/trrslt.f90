@@ -367,7 +367,8 @@
         USE libspl1d
       IMPLICIT NONE
       INTEGER:: IERR, NR
-      REAL(rkind)   :: RMN, F0D
+      INTEGER:: NS
+      REAL(rkind)   :: RMN, F0D, PMI, PMSUM, ANSUM
       REAL(rkind),DIMENSION(NRMAX):: DERIV, U0
       REAL(rkind),DIMENSION(4,NRMAX):: U
       REAL(rkind)   :: TRCOFS
@@ -508,6 +509,21 @@
       GVT(NGT,108)= GUCLIP(PRBT)
       GVT(NGT,109)= GUCLIP(PRCT)
       GVT(NGT,110)= GUCLIP(PRLT)
+
+      PMSUM=0.D0
+      ANSUM=0.D0
+      DO NS=1,NSMAX
+         IF(ID_NS(NS).EQ.1) THEN
+            PMSUM=PMSUM+PA(NS)*ANSAV(NS)
+            ANSUM=ANSUM+ANSAV(NS)
+         END IF
+      END DO
+      IF(ANSUM.GT.0.D0) THEN
+         PMI=PMSUM/ANSUM
+      ELSE
+         PMI=0.D0
+      END IF
+      GVT(NGT,111)= GUCLIP(PMI)
 
 !     *** FOR 3D ***
 
@@ -1384,6 +1400,7 @@
       KVT(108)= 'PRBT      '
       KVT(109)= 'PRCT      '
       KVT(110)= 'PRLT      '
+      KVT(111)= 'PMI       '
 
 !     *** FOR 3D ***
 

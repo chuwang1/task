@@ -6,7 +6,15 @@
 
       SUBROUTINE TRPWRF
 
-      USE TRCOMM
+        USE TRCOMM, ONLY : &
+             AJRF, AJRFV, AME, DR, DVRHO, EPSRHO, NRMAX, PECCD, PECNPR, &
+             PECR0, PECRW, PECTOE, PECIN, PICCD, PICNPR, PICR0, PICRW, &
+             PICTOE, PICIN, PLHCD, PLHNPR, PLHR0, PLHRW, PLHTOE, PLHIN, &
+             PRF, PRFV, RA, RKEV, RM, RN, RT, VC, ZEFF, rkind, &
+             PEC_NEC,PLH_NLH,PIC_NIC,PECTOT,PLHTOT,PICTOT, &
+             NECMAX,NLHMAX,NICMAX,AJRFV,PRFV, &
+             model_prffixed, PRF_ext
+        USE trfixed, ONLY: tr_prep_prffixed
       IMPLICIT NONE
       REAL(rkind)   :: &
            EFCDEC, EFCDIC, EFCDLH, FACT, PEC0, PECL, PIC0, PICL, PLH0, &
@@ -14,16 +22,41 @@
            VTE, VTEP
       INTEGER:: NR,NEC,NLH,NIC
       REAL(rkind)   :: TRCDEF
+      INTEGER,SAVE:: iprf_init=0
 
-      PIC_TOT=SUM(PICIN(1:NICMAX))
-      PLH_TOT=SUM(PLHIN(1:NLHMAX))
-      PEC_TOT=SUM(PECIN(1:NECMAX))
+!     Read external PRF profile once
+      IF(iprf_init.EQ.0) THEN
+         CALL tr_prep_prffixed
+         iprf_init=1
+      END IF
 
-      IF(PEC_TOT+PLH_TOT+PIC_TOT.LE.0.D0) THEN
-         PIC_NSNICNR(1:NSMAX,1:NICMAX,1:NRMAX)=0.D0
-         PLH_NSNLHNR(1:NSMAX,1:NLHMAX,1:NRMAX)=0.D0
-         PEC_NSNECNR(1:NSMAX,1:NECMAX,1:NRMAX)=0.D0
+      PECTOT=0.D0
+      PLHTOT=0.D0
+      PICTOT=0.D0
+      DO NEC=1,NECMAX
+         PECTOT=PECTOT+PECIN(NEC)
+      END DO
+      DO NLH=1,NLHMAX
+         PLHTOT=PLHTOT+PLHIN(NLH)
+      END DO
+      DO NIC=1,NICMAX
+         PICTOT=PICTOT+PICIN(NIC)
+      END DO
+      IF(PECTOT+PLHTOT+PICTOT.LE.0.D0) THEN
+         PRF(1:NRMAX,1)=0.D0
+         PRF(1:NRMAX,2)=0.D0
+         PRF(1:NRMAX,3)=0.D0
          AJRF(1:NRMAX)=0.D0
+         DO NEC=1,NECMAX
+            PEC_NEC(NEC,1:NRMAX)=0.D0
+         END DO
+         DO NLH=1,NLHMAX
+            PLH_NLH(NLH,1:NRMAX)=0.D0
+         END DO
+         DO NIC=1,NICMAX
+            PIC_NIC(NIC,1:NRMAX)=0.D0
+         END DO
+         RETURN
       END IF
 
       DO NR=1,NRMAX
@@ -151,6 +184,13 @@
          PRF(NR,2)=PRFV(NR,2,1)+PRFV(NR,2,2)+PRFV(NR,2,3)
          AJRF(NR)=AJRFV(NR,1)+AJRFV(NR,2)+AJRFV(NR,3)
       END DO
+
+!     Override PRF_e with external profile if model_prffixed=1
+      IF(model_prffixed.EQ.1) THEN
+         DO NR=1,NRMAX
+            PRF(NR,1) = PRF_ext(NR)  ! Override electron RF heating
+         END DO
+      END IF
 
       RETURN
       END SUBROUTINE TRPWRF

@@ -42,14 +42,15 @@
       REAL(rkind):: &
            RS,RKAPL,SHEARL,PNEL,RHONI,DPDRL,DVEXBDRL,CEXB,CKAP,chi_cdbm, &
            PAL,PZL,ADFFI,ACHIE,ACHII,ACHIEB,ACHIIB,ACHIEGB,ACHIIGB, &
-           VTIL, GAMMA0, EXBfactor, SHRfactor, &
-            FRHO_E, FRHO_I
+           VTIL, GAMMA0, EXBfactor, SHRfactor
       REAL(rkind):: CHIIW,DIFHW,CHIEW,DIMPW, &
                 CHIIRB,DIFHRB,CHIERB,DIMPRB, &
                 CHIIKB,DIFHKB,CHIEKB,DIMPKB, &
                 ADDWHL,ADDWZL
       REAL(rkind):: CHII,DIFH,CHIE,DIFZ,VIST,VISP, &
-                CHIIB,DIFHB,CHIEB,CHIEG 
+                CHIIB,DIFHB,CHIEB,CHIEG
+      REAL(rkind):: frac, factor  ! for model_chifixed=2,3
+      REAL(rkind):: FRHO_E, FRHO_I  ! for scaling-based transport (MDLKAI=180-189)
       INTEGER:: MODEL,ierr
       REAL(rkind),DIMENSION(NRMAX):: S_HM
 
@@ -147,6 +148,16 @@
          VEXB(NR)= -ER(NR)/BB
          VEXBP(NR)= -ER(NR)/(RR*BP(NR))
       ENDDO
+
+!     === Pre-compute smoothed magnetic shear (5-point boxcar) ===
+!     Eliminates oscillation in S that causes chi peak at r/a=0.2-0.3
+      S_HM(1) = S(1)
+      S_HM(2) = (S(1)+S(2)+S(3))/3.D0
+      DO NR=3,NRMAX-2
+         S_HM(NR) = (S(NR-2)+S(NR-1)+S(NR)+S(NR+1)+S(NR+2))/5.D0
+      ENDDO
+      S_HM(NRMAX-1) = (S(NRMAX-2)+S(NRMAX-1)+S(NRMAX))/3.D0
+      S_HM(NRMAX) = S(NRMAX)
 
       DO NR=1,NRMAX
 !     characteristic time of temporal change of transport coefficients
@@ -621,11 +632,18 @@
                AKDWIL=CK1*FS*SQRT(ABS(ALPHA(NR)))**3*DELTA2*VA/(QL*RR)
             case(31)
                ALPHAL=ALPHA(NR)*CALF
-               FS=TRCOFS(S(NR),ALPHAL,RKCV(NR))
+               ! === Jump elimination: Set minimum shear ===
+               SHEARL=MAX(S(NR), 0.5D0)
+               FS=TRCOFS(SHEARL,ALPHAL,RKCV(NR))
                IF(MDLCD05.NE.0) &
                     FS=FS*(2.D0*SQRT(RKPRHO(NR))/(1.D0+RKPRHO(NR)**2))**1.5D0
                AKDWEL=CK0*FS*SQRT(ABS(ALPHA(NR)))**3*DELTA2*VA/(QL*RR)
                AKDWIL=CK1*FS*SQRT(ABS(ALPHA(NR)))**3*DELTA2*VA/(QL*RR)
+               ! === Stabilization: Limit chi to prevent oscillation ===
+               AKDWEL=MIN(AKDWEL, 50.D0)  ! Max chi_e = 50 m^2/s
+               AKDWIL=MIN(AKDWIL, 50.D0)  ! Max chi_i = 50 m^2/s
+               AKDWEL=MAX(AKDWEL, 0.1D0)  ! Min chi_e = 0.1 m^2/s
+               AKDWIL=MAX(AKDWIL, 0.1D0)  ! Min chi_i = 0.1 m^2/s
             case(32)
                ALPHAL=ALPHA(NR)*CALF
                FS=TRCOFS(S(NR),ALPHAL,RKCV(NR))
@@ -864,11 +882,15 @@
 
             RS=RA*RG(NR)
             RKAPL=RKPRHO(NR)
-            SHEARL=S(NR)
+
+            ! === Jump elimination: 5-point smoothing of magnetic shear ===
+            ! Smooth shear oscillation to eliminate chi peak at r/a=0.2-0.3
+            SHEARL=MAX(S_HM(NR), 0.5D0)
+
             PNEL=ANE*1.D20
 
             RHONI=(AMD*ANDX+AMT*ANT+AMA*ANA)*1.D20
-            
+
             DPDRl=DPP*1.D20*RKEV
             DVEXBDRL=DVE/RA
             SL=(S(NR)**2+0.1D0**2)
@@ -880,6 +902,10 @@
 
             CALL tr_cdbm(BB,RR,RS,RKAPL,QL,SHEARL,PNEL,rhoni,dpdrl, &
                  &    dvexbdrl,calf,ckap,cexb,MODEL,chi_cdbm)
+
+            ! === Jump elimination: Method 4 - Set minimum chi ===
+            ! Uncomment to eliminate chi jump by setting floor value
+            ! chi_cdbm = MAX(chi_cdbm, 0.5D0)
 
             AKDWEL=(CK0/12.D0)*chi_cdbm
             AKDWIL=(CK1/12.D0)*chi_cdbm
@@ -1012,22 +1038,34 @@
             VGR4(NR,2)=VISP
             VGR4(NR,3)=0.D0
 
-
          CASE(170:179)
-            ! External chi shape factor model
+            ! External chi shape factor model (Option A: pure shape scaling)
+            ! chi_e = CK0 * chi_ext_shape(r)
+            ! chi_i = CK1 * chi_ext_shape(r)
+            ! The external chi profile is read from file and used as shape factor
+            ! CK0/CK1 control the amplitude uniformly across radius
+
+            ! Use external chi directly as shape factor
+            ! AKEXT_E and AKEXT_I are read from knam_chifixed file
             AKDWEL = CK0 * AKEXT_E(NR)
             AKDWIL = CK1 * AKEXT_I(NR)
+
+            ! Apply limits to prevent numerical instability
+            ! Use very small minimum (0.001) to preserve shape
             AKDWEL = MIN(MAX(AKDWEL, 0.001D0), 100.D0)
             AKDWIL = MIN(MAX(AKDWIL, 0.001D0), 100.D0)
+
             AKDW(NR,1) = AKDWEL
             AKDW(NR,2) = AKDWIL
             AKDW(NR,3) = AKDWIL
             AKDW(NR,4) = AKDWIL
-            VGR1(NR,1) = AKEXT_E(NR)
-            VGR1(NR,2) = AKEXT_I(NR)
+
+            ! Store diagnostic variables
+            VGR1(NR,1) = AKEXT_E(NR)  ! External chi_e shape
+            VGR1(NR,2) = AKEXT_I(NR)  ! External chi_i shape
             VGR1(NR,3) = 0.D0
-            VGR2(NR,1) = AKDWEL
-            VGR2(NR,2) = AKDWIL
+            VGR2(NR,1) = AKDWEL       ! Final chi_e
+            VGR2(NR,2) = AKDWIL       ! Final chi_i
             VGR2(NR,3) = 0.D0
             VGR3(NR,1) = CK0
             VGR3(NR,2) = CK1
@@ -1037,7 +1075,17 @@
             VGR4(NR,3) = 0.D0
 
          CASE(180:189)
+            ! =============================================================
             ! Scaling-based anomalous transport model
+            ! chi = C * F(rho) / tau_E_scaling * a^2
+            !
+            ! MDLKAI = 180: ITER89-P L-mode scaling
+            ! MDLKAI = 181: IPB98(y,2) H-mode scaling
+            ! MDLKAI = 182: User H-factor * ITER89-P
+            ! MDLKAI = 183: User H-factor * IPB98(y,2)
+            ! =============================================================
+
+            ! Select target confinement time based on MDLKAI
             SELECT CASE(MDLKAI)
             CASE(180)
                TAUE_TARGET = TAUE89
@@ -1048,34 +1096,49 @@
             CASE(183)
                TAUE_TARGET = H_FACTOR_USER * TAUE98
             CASE DEFAULT
-               TAUE_TARGET = TAUE98
+               TAUE_TARGET = TAUE98  ! Default to H-mode scaling
             END SELECT
+
+            ! Prevent division by zero
             IF(TAUE_TARGET < 1.D-10) TAUE_TARGET = 1.D-2
+
+            ! Calculate transport coefficient using external chi profile
+            ! AKEXT_E and AKEXT_I contain actual chi values in m^2/s
             FRHO_E = AKEXT_E(NR)
             FRHO_I = AKEXT_I(NR)
+
+            ! Ensure non-zero chi values
             IF(FRHO_E < 1.D-10) FRHO_E = 0.1D0
             IF(FRHO_I < 1.D-10) FRHO_I = 0.1D0
+
+            ! Calculate chi = C * chi_ext * CK
+            ! C_SCALING adjusts uniformly to match tau_E from scaling law
+            ! chi_ext provides the shape (radial profile)
             AKDWEL = C_SCALING * FRHO_E * CK0
             AKDWIL = C_SCALING * FRHO_I * CK1
+
+            ! Apply limits to prevent numerical instability
             AKDWEL = MIN(MAX(AKDWEL, 0.01D0), 100.D0)
             AKDWIL = MIN(MAX(AKDWIL, 0.01D0), 100.D0)
-            AKDW(NR,1) = AKDWEL
-            AKDW(NR,2) = AKDWIL
-            AKDW(NR,3) = AKDWIL
-            AKDW(NR,4) = AKDWIL
-            VGR1(NR,1) = FRHO_E
-            VGR1(NR,2) = FRHO_I
-            VGR1(NR,3) = TAUE_TARGET
-            VGR2(NR,1) = AKDWEL
-            VGR2(NR,2) = AKDWIL
-            VGR2(NR,3) = C_SCALING
-            VGR3(NR,1) = TAUE2
-            VGR3(NR,2) = TAUE2/MAX(TAUE_TARGET,1.D-10)
+
+            AKDW(NR,1) = AKDWEL  ! chi_e
+            AKDW(NR,2) = AKDWIL  ! chi_i
+            AKDW(NR,3) = AKDWIL  ! chi_phi (toroidal momentum)
+            AKDW(NR,4) = AKDWIL  ! D_particle
+
+            ! Store diagnostic variables
+            VGR1(NR,1) = FRHO_E         ! External shape F_e(rho)
+            VGR1(NR,2) = FRHO_I         ! External shape F_i(rho)
+            VGR1(NR,3) = TAUE_TARGET    ! Target confinement time
+            VGR2(NR,1) = AKDWEL         ! Final chi_e
+            VGR2(NR,2) = AKDWIL         ! Final chi_i
+            VGR2(NR,3) = C_SCALING      ! Current C value
+            VGR3(NR,1) = TAUE2          ! Current simulated tau_E
+            VGR3(NR,2) = TAUE2/MAX(TAUE_TARGET,1.D-10)  ! Current H-factor equivalent
             VGR3(NR,3) = 0.D0
             VGR4(NR,1) = CK0
             VGR4(NR,2) = CK1
             VGR4(NR,3) = 0.D0
-
 
           CASE(230:239)
 
@@ -1342,9 +1405,9 @@
       IF(model_chifixed.EQ.1) THEN
          ! Mode 1: Use external chi from file
          DO NR=1,NRMAX
-            AK(NR,1) = AKEXT_E(NR)
+            AK(NR,1) = AKEXT_E(NR)  ! electron chi
             DO NS=2,NSM
-               AK(NR,NS) = AKEXT_I(NR)
+               AK(NR,NS) = AKEXT_I(NR)  ! ion chi
             ENDDO
          ENDDO
       ELSE IF(model_chifixed.EQ.2) THEN
@@ -1422,11 +1485,10 @@
 
       SUBROUTINE TRCFET
 
-        USE TRCOMM
-        USE trlib
+      USE TRCOMM
       IMPLICIT NONE
       INTEGER:: NR
-      REAL(rkind)   :: ANE, ANI, CH, CR, EPS, EPSS, ETAS, F33, F33TEFF, FT, FTAUE, FTPF, H, PHI, QL, RK33E, RLNLAME, &
+      REAL(rkind)   :: ANE, ANI, CH, COULOG, CR, EPS, EPSS, ETAS, F33, F33TEFF, FT, FTAUE, FTPF, H, PHI, QL, RK33E, RLNLAME, &
      &             RNUE, RNUSE, RNZ, SGMSPTZ, TAUE, TAUEL, TE, TEL, VTE, XI, ZEFFL
       REAL(rkind):: RK33=1.83D0, RA33=0.68D0, RB33=0.32D0, RC33=0.66D0
 

@@ -112,9 +112,11 @@ CONTAINS
       USE trcomm
       INTEGER :: ierr
 ! local variables
-      INTEGER :: ns,nr
-      REAL(rkind)    :: temp(nrmp,nsm,3)
+      INTEGER :: ns,nr,nr_plasma
+      REAL(rkind)    :: temp(nrmax+1,nsm,3)
 !=======================================================================
+
+      call tr_bpsd_init
 
       device%rr=RR
       device%zz=0.d0
@@ -128,16 +130,17 @@ CONTAINS
       call bpsd_put_data(device,ierr)
 
       plasmaf%time=t
+      nr_plasma=min(plasmaf%nrmax,nrmax+1)
       do ns=1,nsmax
-         call mesh_convert_mtog(rn(1:nrmax,ns),temp(1:plasmaf%nrmax,ns,1), &
-                                nrmax)
-         call mesh_convert_mtog(rt(1:nrmax,ns),temp(1:plasmaf%nrmax,ns,2), &
-                                nrmax)
-         call mesh_convert_mtog(ru(1:nrmax,ns),temp(1:plasmaf%nrmax,ns,3), &
-                                nrmax)
+         call mesh_convert_mtog(rn(1:nrmax,ns),temp(1:nrmax+1,ns,1), &
+                                 nrmax)
+         call mesh_convert_mtog(rt(1:nrmax,ns),temp(1:nrmax+1,ns,2), &
+                                 nrmax)
+         call mesh_convert_mtog(ru(1:nrmax,ns),temp(1:nrmax+1,ns,3), &
+                                 nrmax)
       enddo
-      do nr=1,plasmaf%nrmax
-         do ns=1,plasmaf%nsmax
+      do nr=1,nr_plasma
+         do ns=1,min(plasmaf%nsmax,nsmax)
             plasmaf%data(nr,ns)%density=temp(nr,ns,1)*1.d20
             plasmaf%data(nr,ns)%temperature=temp(nr,ns,2)*1.D3
             plasmaf%data(nr,ns)%temperature_para=temp(nr,ns,2)*1.D3
@@ -164,11 +167,13 @@ CONTAINS
       USE trcomm
       integer,intent(out) :: ierr
 ! local variables
-      integer :: ns,nr
-      real(rkind)    :: temp(nrmp,nsm,3)
-      real(rkind)    :: tempx(nrmp,17),psita,dpsitdrho,dvdrho,rgl
+      integer :: ns,nr,nr_plasma,nr_equ,nr_metric
+      real(rkind)    :: temp(nrmax+1,nsm,3)
+      real(rkind)    :: tempx(nrmax+1,17),psita,dpsitdrho,dvdrho,rgl
       REAL(rkind)    :: FACTOR0, FACTORM, FACTORP
 !=======================================================================
+
+      call tr_bpsd_init
 
       call bpsd_get_data(device,ierr)
 
@@ -183,25 +188,26 @@ CONTAINS
 !      write(6,'(1P6E12.4)') RR,RA,BB,RIP,RKAP,RDLT
 
       call bpsd_get_data(plasmaf,ierr)
+      nr_plasma=min(plasmaf%nrmax,nrmax+1)
 
-      do ns=1,plasmaf%nsmax
-         do nr=1,plasmaf%nrmax
+      do ns=1,min(plasmaf%nsmax,nsm)
+         do nr=1,nr_plasma
             temp(nr,ns,1)=plasmaf%data(nr,ns)%density*1.d-20
             temp(nr,ns,2)=plasmaf%data(nr,ns)%temperature*1.D-3
             temp(nr,ns,3)=plasmaf%data(nr,ns)%velocity_tor
          enddo
       enddo
-      do nr=2,plasmaf%nrmax
+      do nr=2,nr_plasma
          qp(nr-1)=1.d0/plasmaf%qinv(nr)
       enddo
       Q0=2.d0*qp(1)-qp(2)
 
       do ns=1,nsmax
-         call mesh_convert_gtom(temp(1:plasmaf%nrmax,ns,1),rn(1:nrmax,ns), &
+         call mesh_convert_gtom(temp(1:nrmax+1,ns,1),rn(1:nrmax,ns), &
                                 nrmax)
-         call mesh_convert_gtom(temp(1:plasmaf%nrmax,ns,2),rt(1:nrmax,ns), &
+         call mesh_convert_gtom(temp(1:nrmax+1,ns,2),rt(1:nrmax,ns), &
                                 nrmax)
-         call mesh_convert_gtom(temp(1:plasmaf%nrmax,ns,3),ru(1:nrmax,ns), &
+         call mesh_convert_gtom(temp(1:nrmax+1,ns,3),ru(1:nrmax,ns), &
                                 nrmax)
       enddo
 
@@ -221,7 +227,9 @@ CONTAINS
       enddo
       call bpsd_get_data(equ1D,ierr)
 
-      do nr=1,equ1D%nrmax
+      nr_equ=min(equ1D%nrmax,nrmax+1)
+
+      do nr=1,nr_equ
          tempx(nr,1)=equ1D%data(nr)%psit
          tempx(nr,2)=equ1D%data(nr)%psip
          tempx(nr,3)=equ1D%data(nr)%ppp
@@ -245,7 +253,9 @@ CONTAINS
          metric1D%rho(nr)=rg(nr-1)
       enddo
       call bpsd_get_data(metric1D,ierr)
-      do nr=2,metric1D%nrmax       ! metric1D%nrmax = nrmax + 1
+
+      nr_metric=min(metric1D%nrmax,nrmax+1)
+      do nr=2,nr_metric
          rgl=rg(nr-1) ! rgl is equivalent to metric1D%rho(nr)
          dpsitdrho=2.D0*psita*rgl
          dvdrho=metric1D%data(nr)%dvpsit*dpsitdrho
@@ -282,7 +292,6 @@ CONTAINS
          tempx(nr,12)=metric1D%data(nr)%elip
          tempx(nr,13)=1.d0/metric1D%data(nr)%dvpsip/(2.d0*pi)
          tempx(nr,14)=metric1D%data(nr)%avegvr2
-
          tempx(nr,15)=metric1D%data(nr)%pvol
          tempx(nr,16)=metric1D%data(nr)%psur
          tempx(nr,17)=metric1D%data(nr)%aveb

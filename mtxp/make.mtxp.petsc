@@ -3,6 +3,9 @@
 
 EXEC=testbnd testbndc testpcg testksp
 
+PETSC_DIR ?= $(abspath $(dir $(lastword $(MAKEFILE_LIST)))../../petsc)
+PETSC_ARCH ?= arch-linux-cuda
+
 INCLUDE_MTX_MUMPS=-I${PETSC_DIR}/${PETSC_ARCH}/include
 include ${PETSC_DIR}/lib/petsc/conf/variables
 
@@ -37,5 +40,5 @@ LIBX_MTX_MUMPS=$(LIB_MTX_MUMPS) $(PETSC_KSP_LIB)
 #LIBX_MTX=$(LIBX_MTX_MUMPS)
 
 ## with MPI, use PETSc for real matrix
-LIB_MTX=$(LIBXMTX_KSP)
+LIB_MTX=$(LIB_MTX_KSP)
 LIBX_MTX=$(LIBX_MTX_KSP)

@@ -75,6 +75,8 @@ def read_eqdata(filename):
     22. RA, RKAP, RDLT, RB, FRBIN (5 floats)
     23-27. Profile parameters (6,6,6,6,3 floats)
     28. HJTRZ(1:NRGMAX, 1:NZGMAX)
+    29-35. Optional EQ snapshot arrays when IEQSNAP>=2:
+          RSV, VPV, AVIR2, AVRR2, FIPV, QIPV, DPIPV
     """
     
     data = {}
@@ -115,7 +117,7 @@ def read_eqdata(filename):
         data['NPSMAX'] = vals[0]
         NPSMAX = data['NPSMAX']
         
-        # Records 7-11: 1D profile arrays on psi grid
+        # Records 7-13: 1D profile arrays on psi grid
         rec = read_fortran_record(f)
         data['PSIPS'] = np.frombuffer(rec, dtype=np.float64)  # Normalized psi
         
@@ -124,6 +126,18 @@ def read_eqdata(filename):
         
         rec = read_fortran_record(f)
         data['TTPS'] = np.frombuffer(rec, dtype=np.float64)   # TT profile (F)
+
+        rec = read_fortran_record(f)
+        data['DPPPS'] = np.frombuffer(rec, dtype=np.float64)  # dP/dpsi profile
+
+        rec = read_fortran_record(f)
+        data['DTTPS'] = np.frombuffer(rec, dtype=np.float64)  # dTT/dpsi profile
+
+        rec = read_fortran_record(f)
+        data['TTDTTPS'] = np.frombuffer(rec, dtype=np.float64)  # TT*dTT/dpsi profile
+
+        rec = read_fortran_record(f)
+        data['QQPS'] = np.frombuffer(rec, dtype=np.float64)   # q(psi) profile
         
         rec = read_fortran_record(f)
         data['TEPS'] = np.frombuffer(rec, dtype=np.float64)   # Temperature profile
@@ -249,7 +263,54 @@ def read_eqdata(filename):
             # HJTRZ may not exist in older files
             data['HJTRZ'] = np.zeros((NRGMAX, NZGMAX))
             print("Warning: Could not read HJTRZ array, using zeros")
-    
+
+        # Optional records from newer EQSAVE snapshots.
+        optional_names = ['RSV', 'VPV', 'AVIR2', 'AVRR2', 'FIPV', 'QIPV', 'DPIPV']
+        for name in optional_names:
+            try:
+                rec = read_fortran_record(f)
+                if rec is None:
+                    data[name] = np.full(NRVMAX, np.nan)
+                else:
+                    arr = np.frombuffer(rec, dtype=np.float64)
+                    if arr.size == NRVMAX:
+                        data[name] = arr
+                    else:
+                        data[name] = np.full(NRVMAX, np.nan)
+                        print(f"Warning: {name} size mismatch, expected {NRVMAX}, got {arr.size}")
+            except Exception:
+                data[name] = np.full(NRVMAX, np.nan)
+
+        # Optional separatrix arrays from extended EQSAVE.
+        try:
+            rec = read_fortran_record(f)
+            if rec is None:
+                data['NSUMAX_SAVED'] = 0
+                data['RSU'] = np.asarray([], dtype=np.float64)
+                data['ZSU'] = np.asarray([], dtype=np.float64)
+                data['RSW'] = np.asarray([], dtype=np.float64)
+                data['ZSW'] = np.asarray([], dtype=np.float64)
+            else:
+                vals = np.frombuffer(rec, dtype=np.int32)
+                nsum_saved = int(vals[0]) if vals.size > 0 else 0
+                data['NSUMAX_SAVED'] = nsum_saved
+                if nsum_saved > 0:
+                    data['RSU'] = np.frombuffer(read_fortran_record(f), dtype=np.float64)
+                    data['ZSU'] = np.frombuffer(read_fortran_record(f), dtype=np.float64)
+                    data['RSW'] = np.frombuffer(read_fortran_record(f), dtype=np.float64)
+                    data['ZSW'] = np.frombuffer(read_fortran_record(f), dtype=np.float64)
+                else:
+                    data['RSU'] = np.asarray([], dtype=np.float64)
+                    data['ZSU'] = np.asarray([], dtype=np.float64)
+                    data['RSW'] = np.asarray([], dtype=np.float64)
+                    data['ZSW'] = np.asarray([], dtype=np.float64)
+        except Exception:
+            data['NSUMAX_SAVED'] = 0
+            data['RSU'] = np.asarray([], dtype=np.float64)
+            data['ZSU'] = np.asarray([], dtype=np.float64)
+            data['RSW'] = np.asarray([], dtype=np.float64)
+            data['ZSW'] = np.asarray([], dtype=np.float64)
+
     return data
 
 
@@ -299,6 +360,21 @@ def export_to_csv(data, prefix):
                 else:
                     f.write(f'{name},{val:.15e},{desc}\n')
     output_files.append(filename)
+
+    # 1b. Separatrix / boundary points if available
+    if 'RSU' in data and len(data['RSU']) > 0:
+        filename = f'{prefix}_eqgs2d_07_separatrix.csv'
+        with open(filename, 'w') as f:
+            f.write('point_index,RSU_m,ZSU_m,RSW_m,ZSW_m\n')
+            n = len(data['RSU'])
+            for i in range(n):
+                rsw = data['RSW'][i] if i < len(data['RSW']) else np.nan
+                zsw = data['ZSW'][i] if i < len(data['ZSW']) else np.nan
+                f.write(
+                    f'{i+1},{data["RSU"][i]:.15e},{data["ZSU"][i]:.15e},'
+                    f'{rsw:.15e},{zsw:.15e}\n'
+                )
+        output_files.append(filename)
     print(f"Saved: {filename}")
     
     # 2. R grid
@@ -380,7 +456,55 @@ def export_to_csv(data, prefix):
                comments='')
     output_files.append(filename)
     print(f"Saved: {filename}")
-    
+
+    # 11. Fresh eqgs1d_04_QPS.csv compatible export from final radial profiles.
+    filename = 'eqgs1d_04_QPS.csv'
+    with open(filename, 'w') as f:
+        f.write('PSIP,QPS\n')
+        for i in range(nrv):
+            f.write(f'{data["PSIPV"][i]:.16e},{data["QPV"][i]:.16e}\n')
+    output_files.append(filename)
+    print(f"Saved: {filename}")
+
+    # Also save a prefix-scoped copy for traceability.
+    filename_pref = f'{prefix}_eqgs1d_04_QPS.csv'
+    with open(filename_pref, 'w') as f:
+        f.write('PSIP,QPS\n')
+        for i in range(nrv):
+            f.write(f'{data["PSIPV"][i]:.16e},{data["QPV"][i]:.16e}\n')
+    output_files.append(filename_pref)
+    print(f"Saved: {filename_pref}")
+
+    # 12. Fresh eqgs1d_24_EQIPQP_INPUTS.csv if snapshot arrays exist in eqdata.
+    if np.any(np.isfinite(data.get('RSV', np.array([])))):
+        filename = 'eqgs1d_24_EQIPQP_INPUTS.csv'
+        with open(filename, 'w') as f:
+            f.write('PSIPV,PSIPNV,DPPSI,QPSI,RSV,AVIR2,VPV,AVRR2,FIPV\n')
+            for i in range(nrv):
+                f.write(
+                    f'{data["PSIPV"][i]:.16e},{data["PSIPNV"][i]:.16e},'
+                    f'{data["DPIPV"][i]:.16e},{data["QIPV"][i]:.16e},'
+                    f'{data["RSV"][i]:.16e},{data["AVIR2"][i]:.16e},'
+                    f'{data["VPV"][i]:.16e},{data["AVRR2"][i]:.16e},'
+                    f'{data["FIPV"][i]:.16e}\n'
+                )
+        output_files.append(filename)
+        print(f"Saved: {filename}")
+
+        filename_pref = f'{prefix}_eqgs1d_24_EQIPQP_INPUTS.csv'
+        with open(filename_pref, 'w') as f:
+            f.write('PSIPV,PSIPNV,DPPSI,QPSI,RSV,AVIR2,VPV,AVRR2,FIPV\n')
+            for i in range(nrv):
+                f.write(
+                    f'{data["PSIPV"][i]:.16e},{data["PSIPNV"][i]:.16e},'
+                    f'{data["DPIPV"][i]:.16e},{data["QIPV"][i]:.16e},'
+                    f'{data["RSV"][i]:.16e},{data["AVIR2"][i]:.16e},'
+                    f'{data["VPV"][i]:.16e},{data["AVRR2"][i]:.16e},'
+                    f'{data["FIPV"][i]:.16e}\n'
+                )
+        output_files.append(filename_pref)
+        print(f"Saved: {filename_pref}")
+
     return output_files
 
 

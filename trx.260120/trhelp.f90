@@ -187,6 +187,7 @@
      &' ','      ==== IMPURITY PARAMETERS ===='/                        &
      &' ','  PNC    : CARBON DENSITY FACTOR'/                           &
      &' ','  PNFE   : IRON DENSITY FACTOR'/                             &
+     &' ','  PNAR   : ARGON DENSITY FACTOR'/                            &
      &' ','              COMPARED WITH ITER PHYSICS DESIGN GUIDELINE'/  &
      &' ','  PNNU   : NEUTRAL NUMBER DENSITY ON AXIS (1.E20 M**-3)'/    &
      &' ','  PNNUS  :                        ON SURFACE (1.E20 M**-3)'/ &

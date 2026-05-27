@@ -7,7 +7,7 @@ MODULE trparm
        RR,RA,RB,RKAP,RDLT,BB,RIPS,RIPE,RHOA, &
        NSMAX,NSZMAX,NSNMAX, &
        PM,PZ,PN,PNS,PT,PTS,PU,PUS, &
-       MDLIMP,PNC,PNFE,PNNU,PNNUS, &
+       MDLIMP,PNC,PNFE,PNAR,PNNU,PNNUS, &
        PROFN1,PROFN2,PROFT1,PROFT2,PROFU1,PROFU2, &
        PROFNU1,PROFNU2,PROFJ1,PROFJ2,ALP, &
        model_prof,knam_prof,knam_nfixed,knam_tfixed,knam_chifixed, &
@@ -32,7 +32,7 @@ MODULE trparm
        MDLCD,PBSCD, &
        MDLPR,SYNCABS,SYNCSELF, &
        MDLEDGE,CSPRS, &
-       MODELG,NTEQIT,EQRELOAD,MODEP,MDLJQ,MDLFLX, &
+       MODELG,NTEQIT,EQRELOAD,EQAUTO,NEQAUTO,EQFAILMODE,EQSAVE,EQDEBUG,MODEP,MDLJQ,MDLFLX, &
        MDLNI, &
        MDLEQB,MDLEQN,MDLEQT,MDLEQU,MDLEQZ,MDLEQ0,MDLEQE,MDLEOI, &
        MDLER,MDLNCL,NSLMAX, &
@@ -42,7 +42,7 @@ MODULE trparm
        model_chifixed,chifixed_factor,model_chimix,rho_chimix_switch,rho_chimix_width,rho_chimix_core,rho_chimix_core_width, &
        SIGMAV_SCALE_FACTOR, HY_CORRECTION_FACTOR, model_cdbm_smooth, &
        C_SCALING,ALPHA_RELAX,H_FACTOR_USER,C_SCALING_MIN,C_SCALING_MAX, &
-       KNAMEQ,KNAMEQ2,KNAMTR,KFNLOG,KFNTXT,KFNCVS
+       KNAMEQ,KNAMEQ2,KNAMEQWRAP,KNAMEQSNAP,KNAMEQNEW,KNAMTR,KFNLOG,KFNTXT,KFNCVS
 
   PRIVATE
   PUBLIC tr_parm
@@ -124,7 +124,7 @@ CONTAINS
 
   601 FORMAT(' ','# &TR : RR,RA,RB,RKAP,RDLT,BB,RIPS,RIPE,RHOA'/ &
              ' ',8X,'(PM,PZ,PN,PNS,PT,PTS:NSM)'/ &
-             ' ',8X,'PNC,PNFE,PNNU,PNNUS'/ &
+             ' ',8X,'PNC,PNFE,PNAR,PNNU,PNNUS'/ &
              ' ',8X,'PROFN1,PROFN2,PROFT1,PROFT2,PROFU1,PROFU2'/ &
              ' ',8X,'PROFJ1,PROFJ2,ALP'/ &
              ' ',8X,'CK0,CK1,CNP,CNH,CDP,CDH,CNN,CDW,CSPRS'/ &
@@ -141,13 +141,13 @@ CONTAINS
              ' ',8X,'PELTIM,PELPAT'/ &
              ' ',8X,'pellet_time_start,pellet_time_interval'/ &
              ' ',8X,'number_of_pellet_repeat'/ &
-             ' ',8X,'MDLPR,SYNCABS,SYNCSELF,MODELG,NTEQIT,EQRELOAD'/&
+             ' ',8X,'MDLPR,SYNCABS,SYNCSELF,MODELG,NTEQIT,EQRELOAD,EQAUTO,NEQAUTO,EQFAILMODE,EQSAVE,EQDEBUG'/&
              ' ',8X,'MDEDGE,MDLIMP,model_prof,knam_prof,'/ &
              ' ',8X,'MDLXP,MDLUF,MDLNCL,MDLWLD,MDLFLX,MDLER,MDCD05'/ &
              ' ',8X,'MDLEQB,MDLEQN,MDLEQT,MDLEQU,MDLEQZ,MDLEQ0'/ &
              ' ',8X,'MDLEQE,MDLEOI,NSMAX,NSZMAX,NSNMAX,KUFDIR,KUFDEV,KUFDCG'/ &
              ' ',8X,'TIME_INT,MODEP,MDNI,MDLJQ,MDLTC,MDLPCK'/ &
-             ' ',8X,'KNAMEQ,KNAMEQ2,KNAMTR,KFNLOG,KFNTXT,KFNCVS,'/ &
+             ' ',8X,'KNAMEQ,KNAMEQ2,KNAMEQWRAP,KNAMEQSNAP,KNAMEQNEW,KNAMTR,KFNLOG,KFNTXT,KFNCVS,'/ &
              ' ',8X,'MDLPSC,NPSCMAX,PSCIN,PSCR0,PSCRW,NSPSC,PSCIN_MAX,'/ &
              ' ',8X,'knam_nfixed,knam_tfixed,knam_prlfixed,knam_chifixed'/ &
              ' ',8X,'model_nfixed,model_tfixed,model_nevolve,'/ &

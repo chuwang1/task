@@ -26,7 +26,7 @@ CONTAINS
       CALL trstgf
       CALL trgfrg
 
-      if(modelg.eq.3.or.modelg.eq.5.or.modelg.eq.8) then
+      if(modelg.eq.3.or.modelg.eq.5.or.modelg.eq.8.or.modelg.eq.10) then
          write(line,'(A,I5)') 'nrmax=',nrmax+1
          call eq_parm(2,line,ierr)
          write(line,'(A,I5)') 'nthmax=',64
@@ -38,7 +38,11 @@ CONTAINS
             write(6,'(A,A)') 'line=',line
             call eq_parm(2,line,ierr)
          end if
-         call eq_load(modelg,knameq,ierr) ! load eq data and calculate eq
+         if(modelg.eq.10) then
+            call eq_load(5,knameq,ierr) ! MODELG=10 uses external gfile workflow
+         else
+            call eq_load(modelg,knameq,ierr) ! load eq data and calculate eq
+         endif
          IF(ierr.NE.0) THEN
             WRITE(6,*) 'XX eq_load: ierr=',ierr
             RETURN

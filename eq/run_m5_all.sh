@@ -18,12 +18,12 @@ echo "   gfile : $GFILE"
 echo "   prefix: $PREFIX"
 echo "   lcfs  : $USE_GFILE_LCFS (1=gfile, 0=EQFBND)"
 echo "   init  : $INIT_PSI_MODE (1=gfile PSIRZ, 0=analytic)"
-rm -f "$PREFIX"
-printf '0\nc\n' | ./m5 "$GFILE" "$PREFIX" "-" "$USE_GFILE_LCFS" "$INIT_PSI_MODE"
-if [[ ! -s "$PREFIX" ]]; then
-  echo "ERROR: m5 did not produce output file: $PREFIX" >&2
-  exit 1
-fi
+# rm -f "$PREFIX"
+# printf '0\nc\n' | ./m5 "$GFILE" "$PREFIX" "-" "$USE_GFILE_LCFS" "$INIT_PSI_MODE"
+# if [[ ! -s "$PREFIX" ]]; then
+#   echo "ERROR: m5 did not produce output file: $PREFIX" >&2
+#   exit 1
+# fi
 
 echo "== [3/4] Export eqdata CSV =="
 conda run -n "$CONDA_ENV" python3 read_eqdata_to_csv.py "$PREFIX"

@@ -134,8 +134,42 @@ def export_2d_from_eqdata(filename):
 
             print(f"Successfully read PSIRZ grid: {PSIRZ.shape}")
 
+            # Try to read optional separatrix snapshot records from the extended eqdata.
+            RSU = ZSU = RSW = ZSW = None
+            try:
+                # Skip records 6-35 in the binary stream using the same helper.
+                read_fortran_record(f, 'i')  # NPSMAX
+                for _ in range(5):
+                    read_fortran_record(f, 'd')
+                read_fortran_record(f, 'i')  # 8 integer dims
+                for _ in range(3):
+                    read_fortran_record(f, 'd')
+                read_fortran_record(f, 'd')  # axis/global
+                for _ in range(5):
+                    read_fortran_record(f, 'd')
+                for _ in range(5):
+                    read_fortran_record(f, 'd')
+                read_fortran_record(f, 'd')  # HJTRZ
+                # optional snapshot arrays
+                for _ in range(7):
+                    rec_try = read_fortran_record(f, 'd')
+                    if rec_try is None:
+                        raise EOFError
+                rec = read_fortran_record(f, 'i')
+                if rec is not None and len(rec) >= 1:
+                    nsum = int(rec[0])
+                    if nsum > 0:
+                        RSU = np.array(read_fortran_record(f, 'd'))
+                        ZSU = np.array(read_fortran_record(f, 'd'))
+                        RSW = np.array(read_fortran_record(f, 'd'))
+                        ZSW = np.array(read_fortran_record(f, 'd'))
+            except Exception:
+                RSU = ZSU = RSW = ZSW = None
+
             # 导出到 CSV
-            export_psirz_grid(RG, ZG, PSIRZ)
+            export_psirz_grid(RG, ZG, PSIRZ, filename)
+            if RSU is not None and len(RSU) > 0:
+                export_separatrix(RSU, ZSU, RSW, ZSW, filename)
 
             return True
 
@@ -145,10 +179,11 @@ def export_2d_from_eqdata(filename):
         traceback.print_exc()
         return False
 
-def export_psirz_grid(R_grid, Z_grid, PSIRZ):
+def export_psirz_grid(R_grid, Z_grid, PSIRZ, prefix_source=None):
     """导出 PSIRZ 网格到 CSV 文件"""
 
-    filename = 'eqgs2d_01_PSIRZ_grid.csv'
+    prefix = os.path.basename(prefix_source) if prefix_source else None
+    filename = f'{prefix}_eqgs2d_01_PSIRZ_grid.csv' if prefix else 'eqgs2d_01_PSIRZ_grid.csv'
 
     # 创建 DataFrame (Z 为行，R 为列)
     df = pd.DataFrame(
@@ -173,12 +208,12 @@ def export_psirz_grid(R_grid, Z_grid, PSIRZ):
     print(f"✓ Exported: {filename} ({df.shape[0]}×{df.shape[1]} grid)")
 
     # 也创建参数文件
-    export_parameters(R_grid, Z_grid, PSIRZ)
+    export_parameters(R_grid, Z_grid, PSIRZ, prefix)
 
-def export_parameters(R_grid, Z_grid, PSIRZ):
+def export_parameters(R_grid, Z_grid, PSIRZ, prefix=None):
     """导出基本参数到 CSV 文件"""
 
-    filename = 'eqgs2d_08_parameters_basic.csv'
+    filename = f'{prefix}_eqgs2d_08_parameters_basic.csv' if prefix else 'eqgs2d_08_parameters_basic.csv'
 
     # 找到最大值和最小值位置
     psi_min = PSIRZ.min()
@@ -209,12 +244,12 @@ def export_parameters(R_grid, Z_grid, PSIRZ):
     print(f"✓ Exported: {filename}")
 
     # 也导出网格向量
-    export_grids(R_grid, Z_grid)
+    export_grids(R_grid, Z_grid, prefix)
 
-def export_grids(R_grid, Z_grid):
+def export_grids(R_grid, Z_grid, prefix=None):
     """导出 R 和 Z 网格向量"""
 
-    filename = 'eqgs2d_09_RZ_grids.csv'
+    filename = f'{prefix}_eqgs2d_09_RZ_grids.csv' if prefix else 'eqgs2d_09_RZ_grids.csv'
 
     max_len = max(len(R_grid), len(Z_grid))
 
@@ -225,6 +260,16 @@ def export_grids(R_grid, Z_grid):
             z_val = f'{Z_grid[i]:.8E}' if i < len(Z_grid) else ''
             f.write(f'{i+1},{r_val},{z_val}\n')
 
+    print(f"✓ Exported: {filename}")
+
+
+def export_separatrix(RSU, ZSU, RSW, ZSW, prefix_source=None):
+    prefix = os.path.basename(prefix_source) if prefix_source else None
+    filename = f'{prefix}_eqgs2d_07_separatrix.csv' if prefix else 'eqgs2d_07_separatrix.csv'
+    with open(filename, 'w') as f:
+        f.write('point_index,RSU_m,ZSU_m,RSW_m,ZSW_m\n')
+        for i in range(len(RSU)):
+            f.write(f'{i+1},{RSU[i]:.15e},{ZSU[i]:.15e},{RSW[i]:.15e},{ZSW[i]:.15e}\n')
     print(f"✓ Exported: {filename}")
 
 if __name__ == '__main__':

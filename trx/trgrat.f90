@@ -62,6 +62,7 @@
          CALL TRGRR2(INQ)
          CALL TRGRR4(INQ)
          CALL TRGRR7(INQ)
+         CALL TRGRRD(INQ)
       ELSEIF(K2.EQ.'2') THEN
          CALL TRGRT6(INQ)
          CALL TRGRT7(INQ)
@@ -315,7 +316,7 @@
       GYT(1:NGT,4)=GVT(1:NGT,60)
       GYT(1:NGT,5)=GVT(1:NGT,61)+GVT(1:NGT,62)+GVT(1:NGT,63)+GVT(1:NGT,64)
 !     &           +GVT(1:NGT,89)+GVT(1:NGT,90)
-      CALL TRGR1D( 3.0,12.0, 1.1, 4.1,GT,GYT,NTM,NGT,5,'@POUT,PCX,PIE,PRL,PCON [MW]  vs t@',2+INQ)
+      CALL TRGR1D( 3.0,12.0, 1.1, 4.1,GT,GYT,NTM,NGT,5,'@POUT,PCX,PIE,PRSUM,PCON [MW]  vs t@',2+INQ)
 
       GYT(1:NGT,1)=GVT(1:NGT,87)
       CALL TRGR1D(15.0,24.0,14.0,17.0,GT,GYT,NTM,NGT,1,'@QF  vs t@',2+INQ)
@@ -348,7 +349,7 @@
          GYT(1:NGT,7)=GVT(1:NGT,7)
          GYT(1:NGT,8)=GVT(1:NGT,8)
          CALL TRGR1D(15.0,24.0, 1.1, 4.1,GT,GYT,NTM,NGT,8, &
-              '@NE0,ND0,NT0,NA0,<> [10$+20$=/m$+3$=]  vs t@',2+INQ)
+              '@NE0,ND0,NT0,NA0,<NE>,<ND>,<NT>,<NA> [10$+20$=/m$+3$=]  vs t@',2+INQ)
       ENDIF
 
       CALL PAGEE
@@ -379,7 +380,7 @@
       GYT(1:NGT,1)=GVT(1:NGT,85)*100.0
       GYT(1:NGT,2)=GVT(1:NGT,84)*100.0
       GYT(1:NGT,3)=GVT(1:NGT,85)*100.0/(GVT(1:NGT,101)/SNGL(RA*BB))!(GVT(1:NGT,34)/SNGL(RA*BB))
-      CALL TRGR1D( 3.0,12.0, 9.7,12.7,GT,GYT,NTM,NGT,3,'@BETAa,BETA0,[%],BETAN  vs t@',2+INQ)
+      CALL TRGR1D( 3.0,12.0, 9.7,12.7,GT,GYT,NTM,NGT,3,'@BETAa,BETA0,BETAN [%]  vs t@',2+INQ)
 
       GYT(1:NGT,1)=GVT(1:NGT,79)
       GYT(1:NGT,2)=GVT(1:NGT,80)

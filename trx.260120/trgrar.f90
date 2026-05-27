@@ -306,7 +306,7 @@
       ENDDO
       ENDDO
       CALL TRGR1D(15.5,24.5, 2.0, 8.0,GRM,GYR,NRMP,NRMAX,NSMAX+1, &
-           '@PNFIN,PNFCL [MW/m$+3$=]  vs r@',2+INQ)
+           '@PNFIN,PNFCL_e,PNFCL_D,PNFCL_T,PNFCL_He4 [MW/m$+3$=]  vs r@',2+INQ)
 
       CALL TRGRTM
       CALL PAGEE

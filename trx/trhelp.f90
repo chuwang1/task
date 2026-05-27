@@ -240,7 +240,7 @@
      &' ','  MDLNF  : FUSION REACTION MODEL TYPE'/                  &
      &' ','           0:OFF  1:ON'/                                 &
      &' ','      ==== NBI HEATING PARAMETERS ===='/                 &
-     &' ','  PNB_TOT: NBI TOTAL INPUT POWER (MW)'/                  &
+     &' ','  PNBTOT : NBI TOTAL INPUT POWER (MW)'/                  &
      &' ','  PNBR0  : RADIAL POSITION OF NBI POWER DEPOSITION (M)'/ &
      &' ','  PNBRW  : RADIAL WIDTH OF NBI POWER DEPOSITION (M)'/    &
      &' ','  PNBVY  : VERTICAL POSITION OF NBI (M)'/                &

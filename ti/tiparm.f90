@@ -97,8 +97,9 @@ CONTAINS
            PELTS,PELDT,PELTE,PELRAD,PELVEL, &
            PSCIN,PSCR0,PSCRW,PSCPAT, &
            SYNC_WALL,SYNC_CONV, &
-           KNAMLOG,IDEBUG,glog_min, &
-           adpost_dir,adpost_filename,adas_adf11_dir,adas_adf11_filename
+            KNAMLOG,IDEBUG,glog_min, &
+            adpost_dir,adpost_filename,adas_adf11_dir,adas_adf11_filename, &
+            omfit_profile_csv
       
       IERR=0
 
@@ -151,7 +152,7 @@ CONTAINS
       WRITE(6,'(A)') '        SYNC_WALL,SYNC_CONV,KNAMLOG,IEBUG,'
       WRITE(6,'(A)') '        glog_min,'
       WRITE(6,'(A)') '        adpost_dir,adpost_filename,'
-      WRITE(6,'(A)') '        adas_adf11_dir,adas_adf11_filename'
+       WRITE(6,'(A)') '        adas_adf11_dir,adas_adf11_filename,omfit_profile_csv'
       RETURN
     END SUBROUTINE ti_plst
 
@@ -617,7 +618,9 @@ CONTAINS
       SYNC_CONV=rdata(49)
       glog_min=rdata(50)
 
-      CALL mtx_broadcast_integer(NZMIN_NS,NSMAX)
+       CALL mtx_broadcast_character(omfit_profile_csv,80)
+
+       CALL mtx_broadcast_integer(NZMIN_NS,NSMAX)
       CALL mtx_broadcast_integer(NZMAX_NS,NSMAX)
       CALL mtx_broadcast_integer(NZINI_NS,NSMAX)
       CALL mtx_broadcast_real8(PT,NSMAX)

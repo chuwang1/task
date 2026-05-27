@@ -1,7 +1,10 @@
- &ti
+0
+f
+AR.gs
+c
    NSMAX=3
    NPA(3)=18
-   PM(3)=39.95D0
+   PA(3)=39.95D0
    ID_NS(3)=10
    KID_NS(3)='Ar'
    NZMIN_NS(3)=15
@@ -20,4 +23,6 @@
    NGTSTEP=1
    NGRSTEP=1
    NTMAX=10
- &end
+   adas_adf11_dir='../open-adas/adf11/adf11-lib/'
+   adas_adf11_filename='ADF11-bin.data'
+r

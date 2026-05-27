@@ -4,6 +4,7 @@ MODULE trloop
 
   PRIVATE
   PUBLIC tr_loop
+  PUBLIC tr_scaling_adjust
 
 CONTAINS
 
@@ -19,6 +20,7 @@ CONTAINS
       USE trbpsd, ONLY: tr_bpsd_put, tr_bpsd_get,plasmaf
       USE trexec
       USE trprof, ONLY: tr_reset_density
+      USE trfixed, ONLY: tr_prep_arfixed
       USE libitp
       USE equnit
       IMPLICIT NONE
@@ -27,6 +29,11 @@ CONTAINS
 
       ierr=0
       IF(NT.GE.NTMAX) GOTO 9000
+
+      ! Check if Ar density needs to be loaded (for 'c' continue command)
+      IF(model_arfixed.EQ.1 .AND. MAXVAL(ANAR(1:NRMAX)).LT.1.D-20) THEN
+         CALL tr_prep_arfixed
+      END IF
 
       CALL tr_eval(NT,IERR)
       IF(IERR.NE.0) GOTO 9000
@@ -60,7 +67,7 @@ CONTAINS
       ENDIF
 
       call tr_bpsd_put(IERR)
-      
+
       if(ierr.ne.0) GOTO 9000
 
       ! Auto-adjust C_SCALING for scaling-based transport model (MDLKAI=180-189)
@@ -94,10 +101,13 @@ CONTAINS
     END SUBROUTINE tr_loop
 
 !     ***********************************************************
+
 !           AUTO-ADJUST C_SCALING FOR SCALING-BASED TRANSPORT
+
 !     ***********************************************************
 
   SUBROUTINE tr_scaling_adjust(NTSTEP_IN)
+
       USE TRCOMM
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: NTSTEP_IN
@@ -132,6 +142,8 @@ CONTAINS
       ERR_TAUE = MIN(MAX(ERR_TAUE, -0.2D0), 0.2D0)
 
       ! Adjust C using relaxation method
+      ! If tau_sim > tau_target: need more transport (increase C)
+      ! If tau_sim < tau_target: need less transport (decrease C)
       C_SCALING_NEW = C_SCALING * (1.D0 + ALPHA_RELAX * ERR_TAUE)
 
       ! Limit maximum change per step to 2% to prevent oscillation

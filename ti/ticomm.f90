@@ -53,6 +53,7 @@ MODULE ticomm_parm
   CHARACTER(LEN=80):: KNAMLOG
   CHARACTER(LEN=80):: adpost_dir,adpost_filename
   CHARACTER(LEN=80):: adas_adf11_dir,adas_adf11_filename
+  CHARACTER(LEN=80):: omfit_profile_csv
 
 CONTAINS
 
@@ -79,7 +80,7 @@ MODULE ticomm
   REAL(rkind),DIMENSION(:),ALLOCATABLE:: &  !nsa_max
        PMA,PZA,PZ2A
   REAL(rkind),DIMENSION(:,:),ALLOCATABLE:: &  !nsa_max
-       PRADE
+       PRADE,PRADE_PRB,PRADE_PLT
   REAL(rkind),DIMENSION(:,:),ALLOCATABLE:: &  !nsa_max,NRMAX
        RNA,RTA,RUA
   REAL(rkind),DIMENSION(:),ALLOCATABLE:: &  !NRMAX
@@ -207,7 +208,7 @@ CONTAINS
              id=2;IF(IERR.NE.0) GOTO 900
     ALLOCATE(PMA(nsa_max),PZA(nsa_max),PZ2A(nsa_max),STAT=IERR)
              id=3;IF(IERR.NE.0) GOTO 900
-    ALLOCATE(PRADE(nsa_max,NRMAX),STAT=IERR)
+    ALLOCATE(PRADE(nsa_max,NRMAX),PRADE_PRB(nsa_max,NRMAX),PRADE_PLT(nsa_max,NRMAX),STAT=IERR)
              id=4;IF(IERR.NE.0) GOTO 900
     ALLOCATE(RNA(nsa_max,NRMAX),RTA(nsa_max,NRMAX),RUA(nsa_max,NRMAX), &
                                          STAT=IERR)
@@ -369,6 +370,8 @@ CONTAINS
     IF(ALLOCATED(PZA      ))     DEALLOCATE(PZA      )
     IF(ALLOCATED(PZ2A     ))     DEALLOCATE(PZ2A     )
     IF(ALLOCATED(PRADE    ))     DEALLOCATE(PRADE    )
+    IF(ALLOCATED(PRADE_PRB))     DEALLOCATE(PRADE_PRB)
+    IF(ALLOCATED(PRADE_PLT))     DEALLOCATE(PRADE_PLT)
     IF(ALLOCATED(RNA      ))     DEALLOCATE(RNA      )
     IF(ALLOCATED(RTA      ))     DEALLOCATE(RTA      )
     IF(ALLOCATED(RUA      ))     DEALLOCATE(RUA      )

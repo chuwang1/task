@@ -19,6 +19,7 @@ CONTAINS
       USE TRCOMM
       USE trbpsd, ONLY: tr_bpsd_put, tr_bpsd_get,plasmaf
       USE trexec
+      USE treqext
       USE trprof, ONLY: tr_reset_density
       USE libitp
       USE equnit
@@ -39,7 +40,9 @@ CONTAINS
       call tr_bpsd_get(ierr)
       if(ierr.ne.0) GOTO 9000
 
- 1000 CONTINUE
+1000 CONTINUE
+
+!      WRITE(6,*) '## tr_loop state: MODELG=',MODELG,' EQAUTO=',EQAUTO,' NEQAUTO=',NEQAUTO,' NT=',NT
 
       CALL tr_exec(IERR)
       IF(IERR.NE.0) GOTO 9000
@@ -68,8 +71,25 @@ CONTAINS
 
 !     *** SET GEOMETRY VIA TASK/EQ ***
 
-      IF(MODELG.EQ.5 .AND. EQRELOAD.EQ.1) THEN
-         CALL eq_load(MODELG,KNAMEQ,IERR)
+      IF((MODELG.EQ.5 .OR. MODELG.EQ.10) .AND. EQAUTO.EQ.1 .AND. NEQAUTO.GT.0) THEN
+         IF(EQDEBUG.EQ.1) WRITE(6,*) '## auto-check: MODELG=',MODELG,' NT=',NT,' NEQAUTO=',NEQAUTO
+         IF(MOD(NT,NEQAUTO).EQ.0) THEN
+            IF(EQDEBUG.EQ.1) WRITE(6,*) '## auto-triggered at NT=',NT
+            CALL tr_eq_snapshot_write(ierr)
+            IF(ierr.NE.0) THEN
+               WRITE(6,*) 'XX tr_eq_snapshot_write: ierr=',ierr
+               RETURN
+            ENDIF
+            CALL tr_eq_external_update(ierr)
+            IF(ierr.NE.0) THEN
+               WRITE(6,*) 'XX tr_eq_external_update: ierr=',ierr
+               IF(EQFAILMODE.EQ.1) RETURN
+            ENDIF
+         ENDIF
+      ENDIF
+
+      IF((MODELG.EQ.5 .OR. MODELG.EQ.10) .AND. EQRELOAD.EQ.1) THEN
+         CALL eq_load(5,KNAMEQ,IERR)
          IF(IERR.NE.0) THEN
             WRITE(6,*) 'XX eq_load(reload): ierr=',ierr,' knameq=',TRIM(KNAMEQ)
             RETURN

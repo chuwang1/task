@@ -243,6 +243,74 @@
 
 !     ***********************************************************
 
+!           RADIATION POWER - Ar (Argon)
+!           Generated from COREDIV atomic data
+
+!     ***********************************************************
+
+      FUNCTION TRRPAR(TE)
+
+      USE TRCOMM,ONLY: rkind
+      IMPLICIT NONE
+      REAL(rkind):: TE, TEL, ARG, TRRPAR
+
+      ! Range1: 0.001 <= Te <= 0.003 keV
+      REAL(rkind):: AAR10=-8.81278320E+04, AAR11=-1.58149277E+05, AAR12=-1.13330305E+05, &
+                    AAR13=-4.05314444E+04, AAR14=-7.23319172E+03, AAR15=-5.15157880E+02
+
+      ! Range2: 0.003 <= Te <= 0.02 keV
+      REAL(rkind):: AAR20=-3.66485900E+02, AAR21=-8.63985558E+02, AAR22=-8.10606725E+02, &
+                    AAR23=-3.77826284E+02, AAR24=-8.74704215E+01, AAR25=-8.01789423E+00
+
+      ! Range3: 0.02 <= Te <= 0.2 keV
+      REAL(rkind):: AAR30= 8.47819189E+00, AAR31= 7.65766696E+01, AAR32= 1.98642472E+02, &
+                    AAR33= 2.34006712E+02, AAR34= 1.27339589E+02, AAR35= 2.58623000E+01
+
+      ! Range4: 0.2 <= Te <= 2.0 keV
+      REAL(rkind):: AAR40=-2.98012303E+00, AAR41= 4.14941497E-01, AAR42= 8.37837311E+00, &
+                    AAR43=-1.01718234E+01, AAR44=-4.25662990E+01, AAR45=-2.40078861E+01
+
+      ! Range5: 2.0 <= Te <= 20.0 keV
+      REAL(rkind):: AAR50=-3.69251237E+00, AAR51= 7.85750375E+00, AAR52=-2.11251688E+01, &
+                    AAR53= 2.28610761E+01, AAR54=-1.19254059E+01, AAR55= 2.43758986E+00
+
+      ! Range6: 20.0 <= Te <= 100.0 keV
+      REAL(rkind):: AAR60=-2.42570706E+01, AAR61= 6.62553890E+01, AAR62=-8.29093602E+01, &
+                    AAR63= 5.07017990E+01, AAR64=-1.54204572E+01, AAR65= 1.86493989E+00
+
+
+      IF(TE.LE.0.D0) THEN
+         TRRPAR = 0.D0
+      ELSE
+         TEL = LOG10(TE)
+         IF(TE.LE.0.003D0) THEN
+            IF(TE.LT.0.001D0) TEL = LOG10(0.001D0)
+            ARG = AAR10 + AAR11*TEL + AAR12*TEL**2 + &
+                  AAR13*TEL**3 + AAR14*TEL**4 + AAR15*TEL**5
+         ELSEIF(TE.LE.0.02D0) THEN
+            ARG = AAR20 + AAR21*TEL + AAR22*TEL**2 + &
+                  AAR23*TEL**3 + AAR24*TEL**4 + AAR25*TEL**5
+         ELSEIF(TE.LE.0.2D0) THEN
+            ARG = AAR30 + AAR31*TEL + AAR32*TEL**2 + &
+                  AAR33*TEL**3 + AAR34*TEL**4 + AAR35*TEL**5
+         ELSEIF(TE.LE.2.0D0) THEN
+            ARG = AAR40 + AAR41*TEL + AAR42*TEL**2 + &
+                  AAR43*TEL**3 + AAR44*TEL**4 + AAR45*TEL**5
+         ELSEIF(TE.LE.20.0D0) THEN
+            ARG = AAR50 + AAR51*TEL + AAR52*TEL**2 + &
+                  AAR53*TEL**3 + AAR54*TEL**4 + AAR55*TEL**5
+         ELSE
+            ARG = AAR60 + AAR61*TEL + AAR62*TEL**2 + &
+                  AAR63*TEL**3 + AAR64*TEL**4 + AAR65*TEL**5
+         END IF
+         TRRPAR = 10.D0**(ARG - 30.D0)  ! -30 converts COREDIV units to W*m^3
+      END IF
+
+      RETURN
+      END FUNCTION TRRPAR
+
+!     ***********************************************************
+
 !           POWER LOSS
 
 !     ***********************************************************
@@ -251,16 +319,18 @@
 
       USE TRCOMM
       USE tr_cytran_mod, ONLY: tr_cytran
-      USE trfixed, ONLY: tr_prep_prlfixed
+      USE trfixed, ONLY: tr_prep_radfixed, tr_prep_prlfixed
       USE libitp
       IMPLICIT NONE
-      INTEGER:: IERR, NR
-      REAL(rkind):: ANDX, ANE, ANHE, ANT, EION, PLC, PLD, PLFE, PLHE, PLTT, &
-           PRLL, SCH, SION, TD, TE, TN, TNU, TRRPC, TRRPFE, TSL
+      INTEGER:: IERR, NR, NS
+      REAL(rkind):: ANDX, ANE, ANHE, ANT, EION, PLC, PLD, PLFE, PLAR, PLHE, PLTT, &
+           PRLL, SCH, SION, TD, TE, TN, TNU, TRRPC, TRRPFE, TRRPAR, TSL, &
+           ANI, TI, AMZE, AMZI, RTME, RTMI, C1, COEF_EI, COULOG
       INTEGER,SAVE:: irad_init=0
 
 !     Read external radiation profile once
       IF(irad_init.EQ.0) THEN
+         CALL tr_prep_radfixed
          CALL tr_prep_prlfixed
          irad_init=1
       END IF
@@ -271,7 +341,8 @@
 !     Radiation loss caused by impurities
             PLFE  = ANE*ANFE(NR)*TRRPFE(TE)*1.D40
             PLC   = ANE*ANC (NR)*TRRPC (TE)*1.D40
-            PRL(NR)=PLFE+PLC
+            PLAR  = ANE*ANAR(NR)*TRRPAR(TE)*1.D40
+            PRL(NR)=PLFE+PLC+PLAR
 !     Override PRL with external line radiation if model_prlfixed=1
             IF(model_prlfixed.EQ.1) THEN
                PRL(NR)=PRL_ext(NR)
@@ -299,11 +370,18 @@
 !     Sumup
             SELECT CASE(MDLPR)
             CASE(0)
-               PRSUM(NR)=PRL(NR)+PRB(NR)
+               PRSUM(NR)=(PRL(NR)+PRB(NR))
             CASE(1,2)
-               PRSUM(NR)=PRL(NR)+PRB(NR)+PRC(NR)
+               PRSUM(NR)=(PRL(NR)+PRB(NR)+PRC(NR))
             END SELECT
          ENDDO
+
+!     Override PRSUM with external radiation if model_radfixed=1
+         IF(model_radfixed.EQ.1) THEN
+            DO NR=1,NRMAX
+               PRSUM(NR) = PRSUM_ext(NR)
+            END DO
+         END IF
 
 !     ****** IONIZATION LOSS ******
 
@@ -318,6 +396,32 @@
          SIE(NR) = ANE*ANNU(NR)*SION*1.D20
          TSIE(NR)= ANE         *SION*1.D20
       ENDDO
+
+!     ****** ELECTRON-ION COLLISIONAL ENERGY EXCHANGE (DIAGNOSTIC) ******
+
+      COEF_EI = AEE**4*1.D20/(3.D0*SQRT(2.D0*PI)*PI*EPS0**2)
+      DO NR=1,NRMAX
+         QEI(NR)=0.D0
+         ANE = RN(NR,NS_e)
+         TE  = MAX(ABS(RT(NR,NS_e)),1.D-6)
+         IF(ANE.LE.1.D-12) CYCLE
+
+         AMZE = PA(NS_e)*AMP/(PZ(NS_e)**2)
+         RTME = TE*RKEV/(PA(NS_e)*AMP)
+
+         DO NS=2,NSMAX
+            IF(PZ(NS).LE.0.D0) CYCLE
+            ANI = RN(NR,NS)
+            IF(ANI.LE.1.D-12) CYCLE
+
+            TI   = MAX(ABS(RT(NR,NS)),1.D-6)
+            AMZI = PA(NS)*AMP/(PZ(NS)**2)
+            RTMI = TI*RKEV/(PA(NS)*AMP)
+
+            C1 = COEF_EI/((RTME+RTMI)**1.5D0*AMZE*AMZI) * COULOG(NS_e,NS,ANE,TE)
+            QEI(NR) = QEI(NR) + C1*ANE*ANI*(TI-TE)*RKEV*1.D20
+         END DO
+      END DO
 
 !     ****** CHARGE EXCHANGE LOSS ******
 

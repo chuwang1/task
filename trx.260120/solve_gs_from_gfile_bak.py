@@ -22,6 +22,12 @@ import pandas as pd
 from matplotlib.path import Path as MplPath
 
 MU0 = 4.0e-7 * np.pi
+DEBUG = False
+
+
+def dprint(*args, **kwargs):
+    if DEBUG:
+        print(*args, **kwargs)
 
 
 class GFile:
@@ -1066,7 +1072,7 @@ def solve_gs_fixed_boundary(
     if use_lcfs_mask:
         src_geom_mask = build_lcfs_polygon_mask(R, Z, g.rbbbs, g.zbbbs)
         if src_geom_mask is None:
-            print("warning: LCFS polygon unavailable, disable source lcfs mask.")
+            dprint("warning: LCFS polygon unavailable, disable source lcfs mask.")
             use_lcfs_mask = False
         else:
             src_geom_mask = fill_single_cell_holes(src_geom_mask)
@@ -1094,7 +1100,7 @@ def solve_gs_fixed_boundary(
             lam_w, lam_e, lam_s, lam_n = precompute_lcfs_edge_fractions(
                 R, Z, dom_mask, g.rbbbs, g.zbbbs, lambda_min=ghost_lambda_min
             )
-        print(
+        dprint(
             f"LCFS/RSU Dirichlet domain: inside_frac={np.mean(dom_mask):.3f}, "
             f"update_frac={np.mean(update_mask):.3f}, ring_frac={np.mean(fixed_mask):.3f}"
         )
@@ -1116,7 +1122,7 @@ def solve_gs_fixed_boundary(
         axis_r, axis_z, axis_psi = locate_axis_from_psi(
             psi, R, Z, mask=compare_mask, dpsi_sign=dpsi_sign
         )
-        print(
+        dprint(
             "axis mode: dynamic (from current psi), "
             f"initial axis=({axis_r:.5f},{axis_z:.5f}), psi_axis={axis_psi:.6e}"
         )
@@ -1145,6 +1151,7 @@ def solve_gs_fixed_boundary(
         inside_frac0 = float("nan")
 
     for k in range(max_outer):
+        psi_prev_outer = psi.copy()
         if recompute_axis:
             axis_r, axis_z, axis_psi = locate_axis_from_psi(
                 psi, R, Z, mask=compare_mask, dpsi_sign=dpsi_sign
@@ -1285,14 +1292,19 @@ def solve_gs_fixed_boundary(
         else:
             lcfs_bc_max = float("nan")
             lcfs_bc_rms = float("nan")
-        hist.append((k + 1, max_change, rmse, max_abs))
-        print(
+        outer_delta_now = float(np.max(np.abs(psi[compare_mask] - psi_prev_outer[compare_mask])))
+        hist.append((k + 1, max_change, outer_delta_now, rmse, max_abs))
+        dprint(
             f"[outer {k+1:02d}] inner_max_change={max_change:.3e}, "
+            f"outer_delta={outer_delta_now:.3e}, "
             f"rmse_vs_gfile={rmse:.3e}, max_abs_vs_gfile={max_abs:.3e}, "
             f"inside_frac={inside_frac:.3f}, "
             f"lcfs_bc_max={lcfs_bc_max:.3e}, lcfs_bc_rms={lcfs_bc_rms:.3e}, "
             f"axis=({axis_r:.4f},{axis_z:.4f}), psi_axis={axis_psi:.6e}"
         )
+
+        if outer_delta_now < 1.0e-5:
+            break
 
         if save_interval > 0 and (k + 1) % save_interval == 0 and out_prefix and g_for_plot:
             save_outputs(
@@ -1345,7 +1357,7 @@ def save_outputs(
     # Save solver history.
     df_h = pd.DataFrame(
         history,
-        columns=["outer_iter", "inner_max_change", "rmse_vs_gfile", "max_abs_vs_gfile"],
+        columns=["outer_iter", "inner_max_change", "outer_delta", "rmse_vs_gfile", "max_abs_vs_gfile"],
     )
     hist_csv = f"{out_prefix}_solver_history.csv"
     df_h.to_csv(hist_csv, index=False)
@@ -1439,8 +1451,9 @@ def save_outputs(
             txt = (
                 f"Final Iteration: {int(last[0])}\n"
                 f"Inner Max Change: {last[1]:.3e}\n"
-                f"RMSE vs gfile: {last[2]:.3e}\n"
-                f"MAX|err| vs gfile: {last[3]:.3e}\n"
+                f"Outer Delta: {last[2]:.3e}\n"
+                f"RMSE vs gfile: {last[3]:.3e}\n"
+                f"MAX|err| vs gfile: {last[4]:.3e}\n"
                 f"psi_axis: {g.psimag:.6e}\n"
                 f"psi_bdy:  {g.psibdy:.6e}\n"
                 f"axis(gfile): ({g.rmaxis:.4f}, {g.zmaxis:.4f})\n"
@@ -1453,8 +1466,9 @@ def save_outputs(
 
         # Convergence panel at bottom-middle-left.
         ax_conv.plot(history[:, 0], history[:, 1], "o-", label="inner max change")
-        ax_conv.plot(history[:, 0], history[:, 2], "s-", label="RMSE vs gfile")
-        ax_conv.plot(history[:, 0], history[:, 3], "^-", label="MAX|err| vs gfile")
+        ax_conv.plot(history[:, 0], history[:, 2], "s-", label="outer delta")
+        ax_conv.plot(history[:, 0], history[:, 3], "d-", label="RMSE vs gfile")
+        ax_conv.plot(history[:, 0], history[:, 4], "^-", label="MAX|err| vs gfile")
         ax_conv.set_yscale("log")
         ax_conv.set_xlabel("outer iteration")
         ax_conv.set_title("Convergence History")
@@ -1625,7 +1639,8 @@ def save_outputs(
     return psi_csv, hist_csv, fig_png
 
 def save_source_current_profiles(
-    out_prefix, g, x_src, pprime_src, ffprime_src, source_x_kind="psi_n", r0=8.03, rho_of_psin=None
+    out_prefix, g, x_src, pprime_src, ffprime_src, source_x_kind="psi_n", r0=8.03, rho_of_psin=None,
+    profile_csv_path=None,
 ):
     """
     Save a dedicated diagnostic figure for source terms and toroidal current profile.
@@ -1749,6 +1764,29 @@ def save_source_current_profiles(
     axes[1, 2].legend()
 
     fig.suptitle("Input Source and Current Profiles")
+
+    # If the profile CSV contains raw p or F inputs, overlay them so we can
+    # distinguish "input profile" from "reconstructed from derivatives".
+    if profile_csv_path and os.path.exists(profile_csv_path):
+        try:
+            df_in = pd.read_csv(profile_csv_path)
+            if "psi_n" in df_in.columns:
+                xin = df_in["psi_n"].to_numpy(dtype=float)
+                if "p_pa" in df_in.columns:
+                    pin = df_in["p_pa"].to_numpy(dtype=float)
+                    axes[1, 0].plot(xin, pin / 1e6, color="tab:purple", lw=1.5, ls=":", label="Input p_pa")
+                    axes[0, 2].plot(xin, pin / 1e6, color="tab:purple", lw=1.5, ls=":", label="Input p_pa")
+                    axes[1, 0].legend()
+                    axes[0, 2].legend()
+                if "F_tesla_meter" in df_in.columns:
+                    fin = df_in["F_tesla_meter"].to_numpy(dtype=float)
+                    axes[1, 1].plot(xin, fin, color="tab:brown", lw=1.5, ls=":", label="Input F")
+                    axes[1, 2].plot(xin, fin, color="tab:brown", lw=1.5, ls=":", label="Input F")
+                    axes[1, 1].legend()
+                    axes[1, 2].legend()
+        except Exception:
+            pass
+
     fig_png = f"{out_prefix}_source_current_profiles.png"
     fig.savefig(fig_png, dpi=160)
     plt.close(fig)
@@ -1802,6 +1840,7 @@ def main():
         action="store_true",
         help="Use source term from initial gfile psi only (linear fixed-source solve).",
     )
+    parser.add_argument("--debug", action="store_true", help="Print debug/progress output")
     parser.add_argument(
         "--no-lcfs-mask",
         action="store_true",
@@ -1874,6 +1913,9 @@ def main():
     )
     args = parser.parse_args()
 
+    global DEBUG
+    DEBUG = bool(args.debug)
+
     if not (0.0 < args.omega <= 1.0):
         raise ValueError("For weighted Jacobi, omega must satisfy 0 < omega <= 1.")
     if not (0.0 < args.ghost_lambda_min <= 1.0):
@@ -1910,7 +1952,7 @@ def main():
 
     if args.downsample:
         nw_new, nh_new = args.downsample
-        print(f"Downsampling grid from {g.nw}x{g.nh} to {nw_new}x{nh_new}...")
+        dprint(f"Downsampling grid from {g.nw}x{g.nh} to {nw_new}x{nh_new}...")
         g = downsample_gfile(g, nw_new, nh_new)
         if args.from_eq or args.from_eqdata:
             raise ValueError("--downsample is not supported together with --from-eq/--from-eqdata yet.")
@@ -1928,33 +1970,33 @@ def main():
     elif args.from_eqdata:
         init_desc = f"{os.path.abspath(args.from_eqdata)} [from eqdata binary]"
 
-    print(f"gfile: {gfile_path}")
+    dprint(f"gfile: {gfile_path}")
     if args.from_eq:
-        print(f"from_eq: {os.path.abspath(args.from_eq)}")
+        dprint(f"from_eq: {os.path.abspath(args.from_eq)}")
     if args.from_eqdata:
-        print(f"from_eqdata: {os.path.abspath(args.from_eqdata)}")
-    print(f"profile source: {src_desc}")
-    print(f"profile axis convention: {source_x_kind}")
-    print(f"initial psi: {init_desc}")
+        dprint(f"from_eqdata: {os.path.abspath(args.from_eqdata)}")
+    dprint(f"profile source: {src_desc}")
+    dprint(f"profile axis convention: {source_x_kind}")
+    dprint(f"initial psi: {init_desc}")
     mask_mode = "none" if args.no_lcfs_mask else args.mask_mode
-    print(f"mask_mode: {mask_mode}")
-    print(f"boundary_mode: {args.boundary_mode}")
-    print(f"ghost_lambda_min: {args.ghost_lambda_min}")
-    print(f"source_scale: {args.source_scale}")
-    print(f"r0_profile: {args.r0_profile}")
-    print(f"recompute_axis: {args.recompute_axis}")
-    print(
+    dprint(f"mask_mode: {mask_mode}")
+    dprint(f"boundary_mode: {args.boundary_mode}")
+    dprint(f"ghost_lambda_min: {args.ghost_lambda_min}")
+    dprint(f"source_scale: {args.source_scale}")
+    dprint(f"r0_profile: {args.r0_profile}")
+    dprint(f"recompute_axis: {args.recompute_axis}")
+    dprint(
         f"grid: nw={g.nw}, nh={g.nh}, psi_axis={g.psimag:.6e}, "
         f"psi_bdy={g.psibdy:.6e}, Ip={g.currentA:.6e} A"
     )
     ggeom = derive_gfile_geometry_from_grid(g.R, g.Z, rcentr=getattr(g, 'rcentr', None))
-    print(
+    dprint(
         "gfile export geometry prep: "
         f"rdim={ggeom['rdim']:.8f}, zdim={ggeom['zdim']:.8f}, "
         f"rleft={ggeom['rleft']:.8f}, zmid={ggeom['zmid']:.8f}"
     )
     if 'rcentr' in ggeom:
-        print(f"gfile export geometry prep: rcentr={ggeom['rcentr']:.8f}")
+        dprint(f"gfile export geometry prep: rcentr={ggeom['rcentr']:.8f}")
     gaxis = derive_gfile_axis_flux_fields(
         g.psirz,
         g.R,
@@ -1964,13 +2006,13 @@ def main():
         mask=np.ones_like(g.psirz, dtype=bool),
         dpsi_sign=1.0 if float(g.psibdy - g.psimag) >= 0.0 else -1.0,
     )
-    print(
+    dprint(
         "gfile export axis/flux prep: "
         f"rmaxis={gaxis['rmaxis']:.8f}, zmaxis={gaxis['zmaxis']:.8f}, "
         f"psimag={gaxis['psimag']:.8e}, psibdy={gaxis['psibdy']:.8e}"
     )
     if 'bcentr' in gaxis:
-        print(f"gfile export axis/flux prep: bcentr={gaxis['bcentr']:.8f}")
+        dprint(f"gfile export axis/flux prep: bcentr={gaxis['bcentr']:.8f}")
 
     psi_sol, hist, compare_mask = solve_gs_fixed_boundary(
         g,
@@ -2065,7 +2107,7 @@ def main():
             dpsi_sign=1.0 if float(g.psibdy - g.psimag) >= 0.0 else -1.0,
         )
         write_gfile(args.write_gfile, g, psi_sol, axis_info_final)
-        print(f"saved: {os.path.abspath(args.write_gfile)}")
+        dprint(f"saved: {os.path.abspath(args.write_gfile)}")
     profile_fig_png = save_source_current_profiles(
         args.out_prefix,
         g,
@@ -2075,11 +2117,12 @@ def main():
         source_x_kind=source_x_kind,
         r0=args.r0_profile,
         rho_of_psin=rho_of_psin,
+        profile_csv_path=profile_csv,
     )
-    print(f"saved: {psi_csv}")
-    print(f"saved: {hist_csv}")
-    print(f"saved: {fig_png}")
-    print(f"saved: {profile_fig_png}")
+    dprint(f"saved: {psi_csv}")
+    dprint(f"saved: {hist_csv}")
+    dprint(f"saved: {fig_png}")
+    dprint(f"saved: {profile_fig_png}")
 
 
 if __name__ == "__main__":

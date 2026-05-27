@@ -16,18 +16,89 @@ MODULE tirecord
 
 CONTAINS
 
-  SUBROUTINE ti_snap
+  SUBROUTINE ti_write_prade_csv
     USE ticomm
     IMPLICIT NONE
+    INTEGER,PARAMETER:: nid_csv=21
+    INTEGER,SAVE:: csv_initialized=0
+    INTEGER:: nr,nsa
+    REAL(rkind):: prade_tot,prb_tot,plt_tot
+
+    IF(nrank.NE.0) RETURN
+
+    IF(csv_initialized.EQ.0) THEN
+       OPEN(nid_csv,FILE='prade.csv',STATUS='REPLACE',FORM='FORMATTED')
+       WRITE(nid_csv,'(A)',ADVANCE='NO') 'nt,t,nr,rm,prade_tot,prb_tot,plt_tot'
+       DO nsa=1,nsa_max
+          WRITE(nid_csv,'(A,I0)',ADVANCE='NO') ',prade_',nsa
+       END DO
+       DO nsa=1,nsa_max
+          WRITE(nid_csv,'(A,I0)',ADVANCE='NO') ',prb_',nsa
+       END DO
+       DO nsa=1,nsa_max
+          WRITE(nid_csv,'(A,I0)',ADVANCE='NO') ',plt_',nsa
+       END DO
+       WRITE(nid_csv,*)
+       csv_initialized=1
+    ELSE
+       OPEN(nid_csv,FILE='prade.csv',STATUS='OLD',POSITION='APPEND',FORM='FORMATTED')
+    END IF
+
+    DO nr=1,nrmax
+       prade_tot=0.D0
+       prb_tot=0.D0
+       plt_tot=0.D0
+       DO nsa=1,nsa_max
+          prade_tot=prade_tot+prade(nsa,nr)
+          prb_tot=prb_tot+prade_prb(nsa,nr)
+          plt_tot=plt_tot+prade_plt(nsa,nr)
+       END DO
+       WRITE(nid_csv,'(I0,",",1PE23.15,",",I0,",",1PE23.15,3(",",1PE23.15))',ADVANCE='NO') &
+            nt,t,nr,rm(nr),prade_tot,prb_tot,plt_tot
+       DO nsa=1,nsa_max
+          WRITE(nid_csv,'(",",1PE23.15)',ADVANCE='NO') prade(nsa,nr)
+       END DO
+       DO nsa=1,nsa_max
+          WRITE(nid_csv,'(",",1PE23.15)',ADVANCE='NO') prade_prb(nsa,nr)
+       END DO
+       DO nsa=1,nsa_max
+          WRITE(nid_csv,'(",",1PE23.15)',ADVANCE='NO') prade_plt(nsa,nr)
+       END DO
+       WRITE(nid_csv,*)
+    END DO
+    CLOSE(nid_csv)
+    RETURN
+  END SUBROUTINE ti_write_prade_csv
+
+  SUBROUTINE ti_snap
+    USE ticomm
+    USE ticoef,ONLY: ti_coef
+    IMPLICIT NONE
+    INTEGER:: nr,nsa
+    REAL(rkind):: prade_tot
+
+    DO nr=1,nrmax
+       CALL ti_coef(nr)
+    END DO
+
+    CALL ti_write_prade_csv
 
     IF(nrank.EQ.0) THEN
        WRITE(6,'(A,I5,1PE12.4,1PE12.4,2I5)') &
             '#NT,T,RD_LOOP,IC_LOOP,IC_MAT=', &
               NT,T,residual_loop_max,icount_loop_max,icount_mat_max
+       WRITE(6,'(A)') '# PRADE profile: NR RM PRADE_TOT PRADE(1:nsa_max)'
+       DO nr=1,nrmax
+          prade_tot=0.D0
+          DO nsa=1,nsa_max
+             prade_tot=prade_tot+prade(nsa,nr)
+          END DO
+          WRITE(6,'(I6,1P,99E12.4)') nr,rm(nr),prade_tot,(prade(nsa,nr),nsa=1,nsa_max)
+       END DO
 
-!       DO NSA=3,nsa_max8
-!          WRITE(6,'(A,I5,1P5E12.4)') &
-!               'NSA,RNA: ',NSA,(RNA(NSA,NR),NR=NRMAX-4,NRMAX)
+ !       DO NSA=3,nsa_max8
+ !          WRITE(6,'(A,I5,1P5E12.4)') &
+ !               'NSA,RNA: ',NSA,(RNA(NSA,NR),NR=NRMAX-4,NRMAX)
 !       END DO
     END IF
     residual_loop_max=0.D0

@@ -308,7 +308,7 @@ def calculate_mdlkai134_chi(BB, RR, RA, rs, qp, shear, ne, dpdr, rhoni,
 
     fs = trcofs(shearl, calf * alpha, curv)
     fe = np.ones_like(fs)
-    chi_cdbm = 12.0 * fs * fe * np.abs(alpha)**1.5 * delta2 * va / (qp * RR)
+    chi_cdbm = 1.0 * fs * fe * np.abs(alpha)**1.5 * delta2 * va / (qp * RR)
     chi_e = (ck0 / 12.0) * chi_cdbm
 
     return {
@@ -608,10 +608,10 @@ def main():
 
     # Plot 1: Chi profile with jump elimination methods
     ax1 = axes[0, 0]
-    ax1.plot(rho, chi_e, 'b-', linewidth=2, label=r'$\chi$ (Legacy model=2)')
-    ax1.plot(rho, chi_e_134, 'r-', linewidth=2, label=r'$\chi$ (Fortran-like MDLKAI=134)')
+    # ax1.plot(rho, chi_e, 'b-', linewidth=2, label=r'$\chi$ (Legacy model=2)')
+    # ax1.plot(rho, chi_e_134, 'r-', linewidth=2, label=r'$\chi$ (Fortran-like MDLKAI=134)')
     if akdwe_tr is not None:
-        ax1.plot(rho, akdwe_tr, 'g--', linewidth=2, label=r'$AKDWE$ (TR)')
+        ax1.plot(rho, 12*akdwe_tr, 'g--', linewidth=2, label=r'$AKDWE$ (TR)')
     # ax1.plot(rho, chi_e_smin, 'r--', linewidth=2, label=r'$\chi$ (s_min=0.5)')
     # ax1.plot(rho, chi_e_fsfloor, 'g--', linewidth=2, label=r'$\chi$ (fs_floor=0.3)')
     if chi_omfit_e is not None:
@@ -623,6 +623,7 @@ def main():
     ax1.grid(True)
     ax1.set_yscale('log')
     ax1.set_xlim(0, 1)
+    ax1.set_ylim(0.001, 10)
 
     # Plot 2: Alpha (normalized pressure gradient)
     ax2 = axes[0, 1]

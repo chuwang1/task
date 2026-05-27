@@ -384,21 +384,24 @@ CONTAINS
       INTEGER NR
       EXTERNAL TRZEC,TRZEFE
       
-!     *** CALCULATE ANEAVE and ANC, ANFE ***
+!     *** CALCULATE ANEAVE and ANC, ANFE, ANAR ***
 
       ANEAVE=SUM(RN(1:NRMAX,1)*RM(1:NRMAX))*2.D0*DR
       SELECT CASE(MDLIMP)
       CASE(0)
          ANC (1:NRMAX)=0.D0
          ANFE(1:NRMAX)=0.D0
+         ANAR(1:NRMAX)=0.D0
       CASE(1,3)
          DO NR=1,NRMAX
             ANC (NR)= (0.9D0+0.60D0*(0.7D0/ANEAVE)**2.6D0)*PNC *1.D-2*RN(NR,1)
             ANFE(NR)= (0.0D0+0.05D0*(0.7D0/ANEAVE)**2.3D0)*PNFE*1.D-2*RN(NR,1)
+            ANAR(NR)= (0.0D0+0.05D0*(0.7D0/ANEAVE)**2.3D0)*PNAR*1.D-2*RN(NR,1)
          END DO
       CASE(2,4)
          ANC (1:NRMAX)=PNC *RN(1:NRMAX,1)
          ANFE(1:NRMAX)=PNFE*RN(1:NRMAX,1)
+         ANAR(1:NRMAX)=PNAR*RN(1:NRMAX,1)
       END SELECT
 
 !     *** CALCULATE PZC,PZFE ***
@@ -413,7 +416,7 @@ CONTAINS
 
          DO NR=1,NRMAX
             ANI = SUM(PZ(2:NSMAX)*RN(NR,2:NSMAX))     ! main ion charge density
-            ANZ = PZFE(NR)*ANFE(NR)+PZC(NR)*ANC(NR)   ! imputity ion charge den
+             ANZ = PZFE(NR)*ANFE(NR)+PZC(NR)*ANC(NR)   ! impurity ion charge density
             DILUTE = 1.D0-ANZ/ANI                     ! dilution factor
             IF(DILUTE.LT.0.D0) THEN
                WRITE(6,*) 'XX trprof: negative DILUTE: reduce PNC/PNFE'

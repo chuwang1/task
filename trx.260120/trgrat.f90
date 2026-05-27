@@ -208,8 +208,10 @@
          GYT(I,1)=GVT(I,81)
          GYT(I,2)=GVT(I,102)
          GYT(I,3)=GVT(I,103)
+         GYT(I,4)=GVT(I,111)
+         GYT(I,5)=GVT(I,104)
       ENDDO
-      CALL TRGR1D(15.0,24.0, 9.7,12.7,GT,GYT,NTM,NGT,3,'@TAUE89,TAUE98 [s], H98Y2  vs t@',2+INQ)
+      CALL TRGR1D(15.0,24.0, 9.7,12.7,GT,GYT,NTM,NGT,5,'@TAUE89,TAUE98 [s], H98Y2, PMI, ANLAV(1)  vs t@',2+INQ)
 
       CALL PAGEE
 

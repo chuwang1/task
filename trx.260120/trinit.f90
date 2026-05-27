@@ -32,6 +32,14 @@ CONTAINS
       MODELG=2
       NTEQIT=0
       EQRELOAD=0
+      EQAUTO=0
+      NEQAUTO=0
+      EQFAILMODE=0
+      EQSAVE=0
+      EQDEBUG=0
+      KNAMEQWRAP=''
+      KNAMEQSNAP='eq_runtime_snapshot.csv'
+      KNAMEQNEW='eq_runtime_next.gfile'
 
       !  ==== DEVICE PARAMETERS for MODELG=2 ====
 
@@ -233,8 +241,8 @@ CONTAINS
 
       !  ==== IMPURITY ans neutral PARAMETERS ====
       
-      !  MDLIMP : MODEL IMPURITY TREATMENT with PNC and PNFE
-      !       0 : PNC and PNFE are not used
+      !  MDLIMP : MODEL IMPURITY TREATMENT with PNC, PNFE and PNAR
+      !       0 : PNC, PNFE and PNAR are not used
       !       1 : Initial Impurity density according to ITER PHYS GD
       !       2 : Initial Impurity density factor: ANC=PNC*ANE
       !       3 : n_e changes with Te through PZC/PZFE for case 1
@@ -248,7 +256,8 @@ CONTAINS
 
 
       !  PNC    : CARBON DENSITY FACTOR (1.D0 for Guideline)
-      !  PNFE   : IRON DENSITY FACTOR   (1.D0 for Guideline,)
+      !  PNFE   : IRON DENSITY FACTOR   (1.D0 for Guideline)
+      !  PNAR   : ARGON DENSITY FACTOR  (1.D0 for Guideline-like scaling)
       !                COMPARED WITH ITER PHYSICS DESIGN GUIDELINE
       !  PNNU   : NEUTRAL NUMBER DENSITY ON AXIS (1.E20 M**-3)    : not used
       !  PNNUS  :                        ON SURFACE (1.E20 M**-3) : not used
@@ -258,6 +267,7 @@ CONTAINS
 
       PNC     = 0.D0
       PNFE    = 0.D0
+      PNAR    = 0.D0
 
       PNNU    = 0.D0
       PNNUS   = 0.D0

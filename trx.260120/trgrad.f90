@@ -177,7 +177,8 @@
            'PEE ','PECI','PLHE','PLHI','PICE', &
            'PICI','RR  ','RA  ','BB  ','RKAP', &
            'ITOT','TE98','H98Y','ANLE','ANLD', &
-           'ANLT','ANLA','PRBT','PRCT','PRLT'/
+           'ANLT','ANLA','PRBT','PRCT','PRLT', &
+           'PMI '/
 
       KGT=KGTDATA(NP)
       RETURN

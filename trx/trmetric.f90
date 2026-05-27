@@ -23,26 +23,40 @@ CONTAINS
       integer, intent(out):: ierr
       character(len=80):: line
 
+      WRITE(6,'(A)') '## DEBUG: tr_set_metric: before trstgf'
+      CALL FLUSH(6)
       CALL trstgf
+      WRITE(6,'(A)') '## DEBUG: tr_set_metric: before trgfrg'
+      CALL FLUSH(6)
       CALL trgfrg
+      WRITE(6,'(A)') '## DEBUG: tr_set_metric: after trgfrg'
+      CALL FLUSH(6)
 
       if(modelg.eq.3.or.modelg.eq.5.or.modelg.eq.8) then
+         WRITE(6,'(A)') '## DEBUG: tr_set_metric: before eq_parm calls'
+         CALL FLUSH(6)
          write(line,'(A,I5)') 'nrmax=',nrmax+1
          call eq_parm(2,line,ierr)
          write(line,'(A,I5)') 'nthmax=',64
          call eq_parm(2,line,ierr)
          write(line,'(A,I5)') 'nsumax=',0
          call eq_parm(2,line,ierr)
+         WRITE(6,'(A)') '## DEBUG: tr_set_metric: before eq_load'
+         CALL FLUSH(6)
          if(modelg.eq.8) then
             write(line,'(A,A,A,A)') 'knameq2=','"',TRIM(knameq2),'"'
             write(6,'(A,A)') 'line=',line
             call eq_parm(2,line,ierr)
          end if
          call eq_load(modelg,knameq,ierr) ! load eq data and calculate eq
+         WRITE(6,'(A,I5)') '## DEBUG: tr_set_metric: after eq_load ierr=',ierr
+         CALL FLUSH(6)
          IF(ierr.NE.0) THEN
             WRITE(6,*) 'XX eq_load: ierr=',ierr
             RETURN
          ENDIF
+         WRITE(6,'(A)') '## DEBUG: tr_set_metric: before tr_bpsd_get'
+         CALL FLUSH(6)
          call tr_bpsd_get(ierr)  ! 
          if(ierr.ne.0) write(6,*) 'XX tr_bpsd_get: ierr=',ierr
 !         call trgout

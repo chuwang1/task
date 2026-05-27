@@ -163,9 +163,9 @@
            'NB  ','NF  ','<NB>','<NF>','TB  ', &
            'TF  ','<TB>','<TF>','WB  ','WF  ', &
            'WBUL','WTAL','WTOT','IP  ','IOH ', &
-           'INB ','IRF ','IBS ','PIN ','POH ', &
-           'PNB ','PIC ','PLH ','PEC ','PRF ', &
-           'PNF ','PBIN','PBCE','PBCD','PBCT', & ! 50
+           'INB ','IRF ','IBS ','PINT','POHT', &
+           'PNBT','PRFE','PRFD','PRFT','PRFA', &
+           'PNF ','PBIN','PBCE','PBCD','PBCT', &
            'PBCA','PFIN','PFCE','PFCD','PFCT', &
            'PFCA','POUT','PCXT','PIET','PRDT', &
            'PLE ','PLD ','PLT ','PLA ','SINT', &
@@ -173,15 +173,11 @@
            'SLD ','SLT ','SLA ','VLOP','ALI ', &
            'RQ1 ','Q0  ','WDOT','TE1 ','TE2 ', &
            'TE89','BTP0','BTPA','BT0 ','BTA ', &
-           'ZEFF','QF  ','RIP ','PEXE','PEXI', &
-           'PECE','PECI','PLHE','PLHI','PICE', &
-           'PICI','RR  ','RA  ','BB  ','RKAP', & ! 100
+           'ZEFF','QF  ','RIP ','PRFE','PRFI', &
+           'PEE ','PECI','PLHE','PLHI','PICE', &
+           'PICI','RR  ','RA  ','BB  ','RKAP', &
            'ITOT','TE98','H98Y','ANLE','ANLD', &
-           'ANLT','ANLA','PRBT','PRCT','PRLT', &
-           'SNFE','SNFD','SNFT','SNFA','SNF3', &
-           'SNFH','PNFE','PNFD','PNFT','PNFA', &
-           'PNF3','PNFH','SNN2','SNN3','SNN5', &
-           'SNN6','PNN2','PNN3','PNN5','PNN6'/
+           'ANLT','ANLA','PRBT','PRCT','PRLT'/
 
       KGT=KGTDATA(NP)
       RETURN

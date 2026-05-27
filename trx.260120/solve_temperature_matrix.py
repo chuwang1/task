@@ -299,8 +299,8 @@ def load_tr_data():
     data['chi_i'] = chi_i_data.get('AKD', np.zeros_like(r))
 
     # Power input (species-specific)
-    if os.path.exists('tr_data_037.csv'):
-        _, pin, _ = read_tr_csv('tr_data_037.csv')
+    if os.path.exists('tr_data_042.csv'):
+        _, pin, _ = read_tr_csv('tr_data_042.csv')
         data['PIN_e'] = pin.get('PIN_1', np.zeros_like(r))
         data['PIN_D'] = pin.get('PIN_2', np.zeros_like(r))
         data['PIN_T'] = pin.get('PIN_3', np.zeros_like(r))

@@ -75,6 +75,16 @@ def read_omfit_profiles(namelist_file='profiles_CFEDR.namelist'):
             profiles['qbeami'] = np.array(pwo['qbeami']) / 1e6
         if 'qdelt' in pwo:
             profiles['qdelt'] = -np.array(pwo['qdelt']) / 1e6  # e-i exchange rate
+        if 'qdelt_i' in pwo:
+            profiles['qdelt_i'] = np.array(pwo['qdelt_i']) / 1e6
+        if 'qcx' in pwo:
+            profiles['qcx'] = np.array(pwo['qcx']) / 1e6
+        if 'qioni' in pwo:
+            profiles['qioni'] = np.array(pwo['qioni']) / 1e6
+        if 'qe2d' in pwo:
+            profiles['qe2d'] = np.array(pwo['qe2d']) / 1e6
+        if 'qmag' in pwo:
+            profiles['qmag'] = np.array(pwo['qmag']) / 1e6
         # Power flux profiles (MW)
         if 'pow_ei' in pwo:
             profiles['pow_ei'] = np.array(pwo['pow_ei'])
@@ -88,6 +98,21 @@ def read_omfit_profiles(namelist_file='profiles_CFEDR.namelist'):
     if 'ions_1' in nml:
         profiles['Ti'] = np.array(nml['ions_1']['temperature'])
         profiles['ni'] = np.array(nml['ions_1']['density']) / 1e20
+
+    # Read optional species densities (e.g., Ar) from ions_* blocks
+    for key, ion_block in nml.items():
+        if not str(key).lower().startswith('ions_'):
+            continue
+        if not isinstance(ion_block, dict):
+            continue
+        name = str(ion_block.get('name', '')).strip().lower()
+        if 'density' not in ion_block:
+            continue
+        density_1e20 = np.array(ion_block['density']) / 1e20
+        if name == 'ar':
+            profiles['nAr'] = density_1e20
+        elif name in ('he', 'he4', 'alpha'):
+            profiles['nHe'] = density_1e20
 
     return profiles
 
@@ -373,8 +398,11 @@ def main():
     _, temp, _ = read_tr_csv('tr_data_019.csv')
     _, chi_e_data, _ = read_tr_csv('tr_data_023.csv')
     _, chi_i_data, _ = read_tr_csv('tr_data_024.csv')
-    _, pin_data, _ = read_tr_csv('tr_data_037.csv')
-    _, power_loss, _ = read_tr_csv('tr_data_021.csv')
+    _, pin_data, _ = read_tr_csv('tr_data_042.csv')
+    _, power_src, _ = read_tr_csv('tr_data_021.csv')
+    _, rad_exch, _ = read_tr_csv('tr_data_022.csv')
+    _, pnb_split, _ = read_tr_csv('tr_data_032.csv')
+    _, pnf_split, _ = read_tr_csv('tr_data_033.csv')
 
     # Column names may be lowercase or uppercase
     ne_tr = dens.get('nE', dens.get('NE', np.zeros_like(r_tr)))
@@ -388,8 +416,47 @@ def main():
     PIN_i_tr = (pin_data.get('PIN_2', np.zeros_like(r_tr)) +
                 pin_data.get('PIN_3', np.zeros_like(r_tr)) +
                 pin_data.get('PIN_4', np.zeros_like(r_tr)))
-    PRSUM_tr = power_loss.get('-PRSUM', np.zeros_like(r_tr))
-    PIE_tr = power_loss.get('PIE', np.zeros_like(r_tr))
+    PRSUM_tr = rad_exch.get('PRSUM', power_src.get('-PRSUM', np.zeros_like(r_tr)))
+    PRB_tr = rad_exch.get('PRB', np.zeros_like(r_tr))
+    PRC_tr = rad_exch.get('PRC', np.zeros_like(r_tr))
+    PRL_tr = rad_exch.get('PRL', np.zeros_like(r_tr))
+    PIE_tr = rad_exch.get('PIE', np.zeros_like(r_tr))
+    PCX_tr = rad_exch.get('PCX', np.zeros_like(r_tr))
+    QEI_tr = rad_exch.get('QEI', np.zeros_like(r_tr))
+
+    # TR component-wise net source (statefile-like with explicit QEI diagnostic)
+    POH_tr = power_src.get('POH', np.zeros_like(r_tr))
+    PRF_e_tr = power_src.get('PRF(1:NS)', np.zeros_like(r_tr))
+    PRF_D_tr = power_src.get('Y6', np.zeros_like(r_tr))
+    PRF_T_tr = power_src.get('Y7', np.zeros_like(r_tr))
+    PRF_He_tr = power_src.get('Y8', np.zeros_like(r_tr))
+
+    PNBCL_e_tr = pnb_split.get('PNBCL(1:NS)', np.zeros_like(r_tr))
+    PNBCL_D_tr = pnb_split.get('Y3', np.zeros_like(r_tr))
+    PNBCL_T_tr = pnb_split.get('Y4', np.zeros_like(r_tr))
+    PNBCL_He_tr = pnb_split.get('Y5', np.zeros_like(r_tr))
+
+    PNFCL_e_tr = pnf_split.get('PNFCL(1:NS)', np.zeros_like(r_tr))
+    PNFCL_D_tr = pnf_split.get('Y3', np.zeros_like(r_tr))
+    PNFCL_T_tr = pnf_split.get('Y4', np.zeros_like(r_tr))
+    PNFCL_He_tr = pnf_split.get('Y5', np.zeros_like(r_tr))
+
+    Se_components_tr = PNBCL_e_tr + PNFCL_e_tr + PRF_e_tr + POH_tr - PRSUM_tr - PIE_tr
+    Si_components_tr = (
+        PNBCL_D_tr + PNBCL_T_tr + PNBCL_He_tr +
+        PNFCL_D_tr + PNFCL_T_tr + PNFCL_He_tr +
+        PRF_D_tr + PRF_T_tr + PRF_He_tr - PCX_tr
+    )
+
+    # Requested net-source replacement:
+    # Se_net ≈ (PIN_e related components) + QEI
+    # Si_net ≈ (PIN_i related components) - QEI
+    Se_net_tr = Se_components_tr + QEI_tr
+    Si_net_tr = Si_components_tr - QEI_tr
+
+    print(f"   Net-source replacement check (max |PIN-Sum|):")
+    print(f"     e: {np.max(np.abs(PIN_e_tr - Se_components_tr)):.4e} MW/m³")
+    print(f"     i: {np.max(np.abs(PIN_i_tr - Si_components_tr)):.4e} MW/m³")
 
     print(f"   TR grid: {len(r_tr)} points, r/a = [{r_tr[0]:.4f}, {r_tr[-1]:.4f}]")
     print(f"   Te_center (TR sim) = {Te_tr[0]:.2f} keV")
@@ -415,6 +482,10 @@ def main():
                                        rho_omfit, r_tr, rho_rmin)
     ni_omfit = interpolate_to_tr_grid(omfit.get('ni', np.zeros_like(rho_omfit)),
                                        rho_omfit, r_tr, rho_rmin)
+    nAr_omfit = interpolate_to_tr_grid(omfit.get('nAr', np.zeros_like(rho_omfit)),
+                                        rho_omfit, r_tr, rho_rmin)
+    nHe_omfit = interpolate_to_tr_grid(omfit.get('nHe', np.zeros_like(rho_omfit)),
+                                        rho_omfit, r_tr, rho_rmin)
     qrad_omfit = interpolate_to_tr_grid(omfit.get('qrad', np.zeros_like(rho_omfit)),
                                          rho_omfit, r_tr, rho_rmin)
     qfuse_omfit = interpolate_to_tr_grid(omfit.get('qfuse', np.zeros_like(rho_omfit)),
@@ -423,14 +494,57 @@ def main():
                                           rho_omfit, r_tr, rho_rmin)
     qrfe_omfit = interpolate_to_tr_grid(omfit.get('qrfe', np.zeros_like(rho_omfit)),
                                          rho_omfit, r_tr, rho_rmin)
+    qrfi_omfit = interpolate_to_tr_grid(omfit.get('qrfi', np.zeros_like(rho_omfit)),
+                                         rho_omfit, r_tr, rho_rmin)
+    qbeame_omfit = interpolate_to_tr_grid(omfit.get('qbeame', np.zeros_like(rho_omfit)),
+                                           rho_omfit, r_tr, rho_rmin)
+    qbeami_omfit = interpolate_to_tr_grid(omfit.get('qbeami', np.zeros_like(rho_omfit)),
+                                           rho_omfit, r_tr, rho_rmin)
+    qe2d_omfit = interpolate_to_tr_grid(omfit.get('qe2d', np.zeros_like(rho_omfit)),
+                                         rho_omfit, r_tr, rho_rmin)
+    qioni_omfit = interpolate_to_tr_grid(omfit.get('qioni', np.zeros_like(rho_omfit)),
+                                          rho_omfit, r_tr, rho_rmin)
+    qmag_omfit = interpolate_to_tr_grid(omfit.get('qmag', np.zeros_like(rho_omfit)),
+                                         rho_omfit, r_tr, rho_rmin)
+    qcx_omfit = interpolate_to_tr_grid(omfit.get('qcx', np.zeros_like(rho_omfit)),
+                                        rho_omfit, r_tr, rho_rmin)
     qdelt_omfit = interpolate_to_tr_grid(omfit.get('qdelt', np.zeros_like(rho_omfit)),
                                           rho_omfit, r_tr, rho_rmin)
+    qdelt_i_omfit = interpolate_to_tr_grid(omfit.get('qdelt_i', np.zeros_like(rho_omfit)),
+                                            rho_omfit, r_tr, rho_rmin)
 
-    # OMFIT net source terms
-    # Electron: fusion + RF - radiation - e-i exchange
-    S_e_omfit = qfuse_omfit + qrfe_omfit - qrad_omfit - qdelt_omfit
-    # Ion: fusion + e-i exchange
-    S_i_omfit = qfusi_omfit + qdelt_omfit
+    # Save OMFIT profiles used in output plots on TR grid
+    if rho_rmin is not None:
+        rho_map, rmin_map = rho_rmin
+        a_map = np.max(rmin_map)
+        r_over_a_map = rmin_map / a_map
+        rho_on_tr = np.interp(r_tr, r_over_a_map, rho_map)
+    else:
+        rho_on_tr = r_tr.copy()
+
+    # df_omfit_plot = pd.DataFrame({
+    #     'r_m': r_tr * A_MINOR,
+    #     'r_over_a': r_tr,
+    #     'rho': rho_on_tr,
+    #     'ne_omfit_1e20_m3': ne_omfit,
+    #     'nAr_omfit_1e20_m3': nAr_omfit,
+    #     'nHe_omfit_1e20_m3': nHe_omfit,
+    #     'Te_omfit_keV': Te_omfit,
+    # })
+    df_omfit_plot = pd.DataFrame({
+        'rho': rho_on_tr,
+        'ne_omfit_1e20_m3': ne_omfit,
+        'nAr_omfit_1e20_m3': nAr_omfit,
+        'nHe_omfit_1e20_m3': nHe_omfit,
+        'Te_omfit_keV': Te_tr,
+    })
+    omfit_plot_csv = 'omfit_r_rho_ne_te_from_temperature_plot.csv'
+    df_omfit_plot.to_csv(omfit_plot_csv, index=False)
+    print(f"   Saved OMFIT (r, rho, ne, Te) to {omfit_plot_csv}")
+
+    # OMFIT net source terms (statefile-sum convention, see compare_Se_statefile.py)
+    S_e_omfit = qfuse_omfit + qrfe_omfit + qbeame_omfit + qe2d_omfit + qmag_omfit + qdelt_omfit - qrad_omfit
+    S_i_omfit = qfusi_omfit + qrfi_omfit + qbeami_omfit + qioni_omfit + qdelt_i_omfit - qcx_omfit
 
     print(f"   qrad_center (OMFIT) = {qrad_omfit[0]:.4f} MW/m³")
     print(f"   PRSUM_center (TR)   = {PRSUM_tr[0]:.4f} MW/m³")
@@ -494,16 +608,16 @@ def main():
         result = minimize_scalar(objective, bounds=(0.1, 2.0), method='bounded')
         return result.x
 
-    # Case 1: TR source (PIN), optimal chi
-    chi_factor_e_tr = find_chi_factor(ne_tr, chi_e_tr, PIN_e_tr, Te_edge, Te_tr)
-    chi_factor_i_tr = find_chi_factor(ni_tr, chi_i_tr, PIN_i_tr, Ti_edge, Ti_tr)
+    # Case 1: TR net source (components ± QEI), optimal chi
+    chi_factor_e_tr = find_chi_factor(ne_tr, chi_e_tr, Se_net_tr, Te_edge, Te_tr)
+    chi_factor_i_tr = find_chi_factor(ni_tr, chi_i_tr, Si_net_tr, Ti_edge, Ti_tr)
 
-    Te_calc_tr = solve_temperature_matrix(r_tr, ne_tr, chi_e_corediv, PIN_e_tr, Te_edge,
-                                           chi_factor=chi_factor_e_tr)
-    Ti_calc_tr = solve_temperature_matrix(r_tr, ni_tr, chi_e_corediv, PIN_i_tr, Ti_edge,
-                                           chi_factor=chi_factor_i_tr)
+    Te_calc_tr = solve_temperature_matrix(r_tr, ne_tr, chi_e_corediv, Se_net_tr, Te_edge,
+                                            chi_factor=chi_factor_e_tr)
+    Ti_calc_tr = solve_temperature_matrix(r_tr, ni_tr, chi_e_corediv, Si_net_tr, Ti_edge,
+                                            chi_factor=chi_factor_i_tr)
 
-    print(f"\n   Case 1: TR source (PIN), optimal chi")
+    print(f"\n   Case 1: TR net source (PIN-related ± QEI), optimal chi")
     print(f"   chi_factor_e = {chi_factor_e_tr:.4f}, chi_factor_i = {chi_factor_i_tr:.4f}")
     print(f"   Te_center = {Te_calc_tr[0]:.2f} keV (target TR: {Te_tr[0]:.2f})")
     print(f"   Ti_center = {Ti_calc_tr[0]:.2f} keV (target TR: {Ti_tr[0]:.2f})")
@@ -533,11 +647,11 @@ def main():
     print(f"   Ti_center = {Ti_calc_omfit_opt[0]:.2f} keV (target: {Ti_omfit[0]:.2f})")
 
     # Case 4: TR heating + OMFIT radiation
-    # Reconstruct electron source: PIN_e already has TR losses subtracted
-    # Add back TR losses and subtract OMFIT radiation
-    # PIN_e = heating - PRSUM - PIE, so heating = PIN_e + PRSUM + PIE
-    S_e_hybrid = PIN_e_tr + PRSUM_tr - qrad_omfit  # Use OMFIT radiation instead
-    S_i_hybrid = PIN_i_tr  # Keep TR ion source
+    # Se_net_tr = heating - PRSUM - PIE + QEI  -> heating = Se_net_tr + PRSUM + PIE - QEI
+    # Replace TR radiation with OMFIT radiation while keeping other terms:
+    # S_e_hybrid = heating - qrad_omfit - PIE + QEI = Se_net_tr + PRSUM - qrad_omfit
+    S_e_hybrid = Se_net_tr + PRSUM_tr - qrad_omfit
+    S_i_hybrid = Si_net_tr  # Keep TR ion net source
 
     chi_factor_e_hybrid = find_chi_factor(ne_tr, chi_e_tr, S_e_hybrid, Te_edge, Te_omfit)
     chi_factor_i_hybrid = find_chi_factor(ni_tr, chi_i_tr, S_i_hybrid, Ti_edge, Ti_omfit)
@@ -643,7 +757,7 @@ def main():
         # ax.plot(r_tr, Te_calc_corediv_direct, 'g-', lw=2, label='OMFIT Source+Transport')
     # if Te_calc_corediv_trchi is not None:
         # ax.plot(r_tr, Te_calc_corediv_trchi, 'orange', lw=2, ls='-.', label='OMFIT Source + TR Transport')
-    ax.set_xlabel('r/a')
+    ax.set_xlabel('rho')
     ax.set_ylabel('Te [keV]')
     ax.set_title('Electron Temperature')
     ax.legend(fontsize=7, loc='upper right')
@@ -660,7 +774,7 @@ def main():
         # ax.plot(r_tr, Ti_calc_corediv_direct, 'g-', lw=2, label='OMFIT Source+Transport')
     # if Ti_calc_corediv_trchi is not None:
         # ax.plot(r_tr, Ti_calc_corediv_trchi, 'orange', lw=2, ls='-.', label='OMFIT Source + TR Transport')
-    ax.set_xlabel('r/a')
+    ax.set_xlabel('rho')
     ax.set_ylabel('Ti [keV]')
     ax.set_title('Ion Temperature')
     ax.legend(fontsize=8)
@@ -669,23 +783,29 @@ def main():
 
     # Radiation comparison
     ax = axes[0, 2]
-    ax.plot(r_tr, -PRSUM_tr, 'b-', lw=2, label='TR (PRSUM)')
+    ax.plot(r_tr, PRSUM_tr, color='k', lw=2, label='TR PRSUM total')
+    ax.plot(r_tr, PRB_tr, color='tab:blue', ls='--', lw=1.8, label='TR PRB')
+    ax.plot(r_tr, PRC_tr, color='tab:green', ls='-.', lw=1.8, label='TR PRC')
+    ax.plot(r_tr, PRL_tr, color='tab:purple', ls=':', lw=2.0, label='TR PRL')
     ax.plot(r_tr, qrad_omfit, 'r-', lw=2, label='OMFIT (qrad)')
-    ax.set_xlabel('r/a')
+    ax.set_xlabel('rho')
     ax.set_ylabel('P_rad [MW/m³]')
-    ax.set_title('Radiation Profile')
-    ax.legend()
+    ax.set_title('Radiation Profile (TR split vs OMFIT)')
+    ax.legend(fontsize=8)
     ax.grid(True)
     ax.set_xlim([0, 1])
 
     # Electron source comparison
     ax = axes[1, 0]
-    ax.plot(r_tr, PIN_e_tr, 'b-', lw=2, label='TR (PIN_e)')
+    ax.plot(r_tr, Se_net_tr, 'b-', lw=2, label='TR (Se_net ≈ PIN_e-components + QEI)')
+    ax.plot(r_tr, PIN_e_tr, 'b:', lw=1.5, label='TR PIN_e (reference)')
     # ax.plot(r_tr, S_e_omfit, 'r-', lw=2, label='OMFIT (net e)')
     # ax.plot(r_tr, S_e_hybrid, 'g--', lw=1.5, label='Hybrid')
+    sources=pd.read_csv('rho_rmin_Si_Se_qe_qi_sum.csv')
     if corediv is not None:
-        ax.plot(r_tr, Se_corediv/1e6, 'r-.', lw=2, label='OMFIT (Se)')
-    ax.set_xlabel('r/a')
+        # ax.plot(r_tr, Se_corediv/1e6, 'r-.', lw=2, label='OMFIT (Se)')
+        ax.plot(sources['rho'], sources['qe_sum']/1e6,'r-.', lw=2, label='OMFIT (Se)')
+    ax.set_xlabel('rho')
     ax.set_ylabel('S_e [MW/m³]')
     ax.set_title('Electron Net Source')
     ax.legend(fontsize=8)
@@ -694,24 +814,27 @@ def main():
 
     # Ion source comparison
     ax = axes[1, 1]
-    ax.plot(r_tr, PIN_i_tr, 'b-', lw=2, label='TR (PIN_i)')
+    ax.plot(r_tr, Si_net_tr, 'b-', lw=2, label='TR (Si_net ≈ PIN_i-components - QEI)')
+    ax.plot(r_tr, PIN_i_tr, 'b:', lw=1.5, label='TR PIN_i (reference)')
     # ax.plot(r_tr, S_i_omfit, 'r-', lw=2, label='OMFIT (net i)')
     if corediv is not None:
-        ax.plot(r_tr, Si_corediv/1e6, 'r-.', lw=2, label='OMFIT (Si)')
-    ax.set_xlabel('r/a')
+        # ax.plot(r_tr, Si_corediv/1e6, 'r-.', lw=2, label='OMFIT (Si)')
+        ax.plot(sources['rho'], sources['qi_sum']/1e6, 'r-.', lw=2, label='OMFIT (Si)')
+    ax.set_xlabel('rho')
     ax.set_ylabel('S_i [MW/m³]')
     ax.set_title('Ion Net Source')
     ax.legend(fontsize=8)
     ax.grid(True)
     ax.set_xlim([0, 1])
+    ax.set_ylim([-0.2, 1])
 
     # Density comparison (TR vs OMFIT)
     ax = axes[1, 2]
     ax.plot(r_tr, ne_tr, 'b-', lw=2, label='TR n_e')
     ax.plot(r_tr, ne_omfit, 'b--', lw=2, label='OMFIT n_e')
     ax.plot(r_tr, ni_tr, 'r-', lw=2, label='TR n_i')
-    ax.plot(r_tr, ni_omfit, 'r--', lw=2, label='OMFIT n_i')
-    ax.set_xlabel('r/a')
+    ax.plot(r_tr, 2*ni_omfit, 'r--', lw=2, label='OMFIT n_i')
+    ax.set_xlabel('rho')
     ax.set_ylabel('n [10²⁰/m³]')
     ax.set_title('Density Profile (TR vs OMFIT)')
     ax.legend(fontsize=8)
@@ -724,7 +847,7 @@ def main():
     print(chi_e_tr)
     if corediv is not None:
         ax.plot(r_tr, chi_e_corediv, 'r-', lw=2, label='OMFIT chi_e')
-    ax.set_xlabel('r/a')
+    ax.set_xlabel('rho')
     ax.set_ylabel('chi_e [m²/s]')
     ax.set_title('Electron Transport Coefficient')
     ax.legend()
@@ -737,7 +860,7 @@ def main():
     ax.plot(r_tr, chi_i_tr, 'b-', lw=2, label='TR chi_i')
     if corediv is not None:
         ax.plot(r_tr, chi_i_corediv, 'r-', lw=2, label=' chi_i')
-    ax.set_xlabel('r/a')
+    ax.set_xlabel('rho')
     ax.set_ylabel('chi_i [m²/s]')
     ax.set_title('Ion Transport Coefficient')
     ax.legend()
