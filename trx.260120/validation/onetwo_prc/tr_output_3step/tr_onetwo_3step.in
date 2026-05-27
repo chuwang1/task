@@ -1,0 +1,101 @@
+0
+f
+gs/tr.CFEDR.gs
+c
+   MODELG=5
+   knameq='/home/chuw/CFEDR/TASK/git/task/eq/in/g260206.20000_teq_0114'
+   RR=8.03D0
+   RA=2.72D0
+   RKAP=1.89D0
+   RDLT=0.59D0
+   BB=6.D0
+   RIPS=1.4D0
+   RIPE=20.4D0
+   NSMAX=4
+   model_prof=12
+   knam_prof='density_input0114_rho.csv'
+   model_nevolve=1
+   PN=1.4D0, 0.250D0, 0.250D0, 0.056D0
+   PNS=0.35D0, 0.14D0, 0.14D0, 0.01D0
+   PT= 20.D0,20.D0,20.D0,20.D0
+   PROFN2=0.5D0
+   model_nnf=2
+
+   PECR0=0.955D0
+   PECRW=0.15D0
+   PECNPR=5.D0
+   PECIN=60
+
+   PICR0=0.0D0
+   PICRW=0.45D0
+   PICNPR=5.D0
+   PICIN=10
+
+   MDLJBS=5
+   PECCD=0.68D0
+   PBSCD=0.7
+   PICCD=-0.50
+   PICTOE=0.95
+
+   model_prlfixed=1
+   knam_prlfixed='omfit_prl_for_tr.csv'
+   MDLPR=2
+   REFRAD=0.8D0
+   SYNCABS = 0.0
+
+   NGTSTP=20
+   dt=0.0001
+   ntstep=100
+   ntmax=000
+   NRMAX=200
+
+   SIGMAV_SCALE_FACTOR=1.075
+   HY_CORRECTION_FACTOR=1.2
+   CNH=1.0
+   AD0=0.5
+   CK0 = 12
+   CK1 = 12
+   CNP=1.0
+   ntmax=0
+   MDLKAI = 38
+
+   NTEQIT=0
+   MDLEQN=0
+   MDLEDGE=0
+   CSPRS=0.4
+   model_cdbm_smooth=0
+r
+   ntmax=3
+   MDLEQN=0
+   model_chimix = 2
+   rho_chimix_switch = 0.9
+   rho_chimix_width  = 0.02
+   rho_chimix_core = 0.01
+   MDLKAI=133
+   knam_chifixed = 'chi_div_grad2_drdrho.dat'
+c
+g
+t6
+t7
+r1
+r2
+r3
+r4
+r5
+r6
+r7
+rE
+A1
+A2
+A3
+E1
+E2
+g1
+g2
+g3
+g4
+g5
+R2
+E6
+x
+q

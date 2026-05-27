@@ -27,7 +27,7 @@ ${OBJDIR}/%.o:%.f90
 SRCS=trcomm.f90 treqext.f90 trbpsd.f90 libnf.f90 libsigma.f90 \
      trinit.f90 trparm.f90 trview.f90 \
      trmetric.f90 trfixed.f90 trprof.f90 trprep.f90 \
-     trncls.f90 trcytran.f90 trcoll.f90 \
+     trncls.f90 trcytran.f90 tr_onetwo_prc_kernel.f90 tr_onetwo_prc.f90 trcoll.f90 \
      trfile.f90 trhelp.f90 \
      trpnf.f90 \
      trexec.f90 trcalc.f90 \
@@ -125,7 +125,7 @@ $(OBJDIR)/trloop.o : trloop.f90 trcomm.f90
 $(OBJDIR)/trexec.o : trexec.f90 trcomm.f90 trfixed.f90
 $(OBJDIR)/trpl.o : trpl.f90 trcomm.f90
 $(OBJDIR)/trrslt.o : trrslt.f90 trcomm.f90
-$(OBJDIR)/trcalc.o : trcalc.f90 trcomm.f90
+$(OBJDIR)/trcalc.o : trcalc.f90 trcomm.f90 trcytran.f90 tr_onetwo_prc.f90
 $(OBJDIR)/trcoef.o : trcoef.f90 trcomm.f90
 $(OBJDIR)/trajbs.o : trajbs.f90 trcomm.f90
 $(OBJDIR)/trpnb.o  : trpnb.f90  trcomm.f90 
@@ -152,3 +152,5 @@ $(OBJDIR)/trmodels.o : trmodels.f90  trcomm.f90
 $(OBJDIR)/trncls.o : trncls.f90 trcomm.f90 ../trlib/nclass/pamx_mi.inc \
            ../trlib/nclass/pamx_ms.inc ../trlib/nclass/pamx_mz.inc
 $(OBJDIR)/trcytran.o: trcytran.f90
+$(OBJDIR)/tr_onetwo_prc_kernel.o: tr_onetwo_prc_kernel.f90
+$(OBJDIR)/tr_onetwo_prc.o: tr_onetwo_prc.f90 tr_onetwo_prc_kernel.f90 trcomm.f90

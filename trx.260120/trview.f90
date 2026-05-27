@@ -234,6 +234,7 @@ CONTAINS
       IF(MDLPR.GE.1) THEN
          WRITE(6,623) 'MDLPR   ',MDLPR,   'SYNCABS ',SYNCABS, &
                       'SYNCSELF',SYNCSELF
+         WRITE(6,631) 'REFRAD  ',REFRAD
       ENDIF
 
       WRITE(6,'(A,A)') 'KNAMEQ =',TRIM(knameq)

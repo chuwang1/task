@@ -10,6 +10,7 @@
       USE TRCOMM
       USE trpnf
       USE tr_cytran_mod
+      USE tr_onetwo_prc_mod
       USE libitp
       IMPLICIT NONE
       INTEGER,INTENT(OUT)    :: IERR
@@ -95,7 +96,12 @@
 
       CALL TRZEFF
 
-      IF(MDLPR.GT.0) CALL TR_CYTRAN
+      SELECT CASE(MDLPR)
+      CASE(1)
+         CALL TR_CYTRAN
+      CASE(2)
+         CALL TR_ONETWO_PRC
+      END SELECT
 
       IF(MDLNCL.NE.0) THEN
          CALL TR_NCLASS(IERR)

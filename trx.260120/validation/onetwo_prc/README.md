@@ -25,3 +25,6 @@ minor_radius_m = 2.72
 major_radius_m = 8.03
 wall_reflection = 0.8
 ```
+
+For validation against a complete 3-step TR run with `MDLPR=2`, see
+`TR_OUTPUT_3STEP_VALIDATION.md`.

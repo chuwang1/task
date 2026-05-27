@@ -134,7 +134,7 @@ MODULE trcomm_parm
   ! === radiation parameter ===
 
   INTEGER:: MDLPR
-  REAL(rkind):: SYNCABS,SYNCSELF
+  REAL(rkind):: SYNCABS,SYNCSELF,REFRAD
 
   ! === Source parameters: NB,EC,LH,IC,PEL,PSC ===
 

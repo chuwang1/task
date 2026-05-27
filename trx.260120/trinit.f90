@@ -551,14 +551,17 @@ CONTAINS
 
       !     MDLPR  : MODEL OF RADIATION
       !               0: PRSUM=PRB+PRL
-      !               1: PRSUM=PRB+PRL+PRC
+      !               1: PRSUM=PRB+PRL+PRC, PRC from CYTRAN
+      !               2: PRSUM=PRB+PRL+PRC, PRC from ONETWO analytic model
 
       !     SYNCABS : fraction of cyclotron radiation absorption by walls
       !     SYNCSELF: fraction of x (o) mode reflected as x (o) mode
+      !     REFRAD  : wall reflection coefficient for ONETWO PRC
 
       MDLPR=0
       SYNCABS=0.2D0
       SYNCSELF=0.95D0
+      REFRAD=0.8D0
 
       !  *** Source parameters ***
 
